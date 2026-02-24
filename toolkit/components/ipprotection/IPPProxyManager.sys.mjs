@@ -6,23 +6,23 @@ const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
   IPPEnrollAndEntitleManager:
-    "moz-src:///browser/components/ipprotection/IPPEnrollAndEntitleManager.sys.mjs",
+    "moz-src:///toolkit/components/ipprotection/IPPEnrollAndEntitleManager.sys.mjs",
   IPPChannelFilter:
-    "moz-src:///browser/components/ipprotection/IPPChannelFilter.sys.mjs",
+    "moz-src:///toolkit/components/ipprotection/IPPChannelFilter.sys.mjs",
   IPPNetworkUtils:
-    "moz-src:///browser/components/ipprotection/IPPNetworkUtils.sys.mjs",
+    "moz-src:///toolkit/components/ipprotection/IPPNetworkUtils.sys.mjs",
   IPProtectionUsage:
-    "moz-src:///browser/components/ipprotection/IPProtectionUsage.sys.mjs",
+    "moz-src:///toolkit/components/ipprotection/IPProtectionUsage.sys.mjs",
   IPPNetworkErrorObserver:
-    "moz-src:///browser/components/ipprotection/IPPNetworkErrorObserver.sys.mjs",
+    "moz-src:///toolkit/components/ipprotection/IPPNetworkErrorObserver.sys.mjs",
   IPProtectionServerlist:
-    "moz-src:///browser/components/ipprotection/IPProtectionServerlist.sys.mjs",
+    "moz-src:///toolkit/components/ipprotection/IPProtectionServerlist.sys.mjs",
   IPProtectionService:
-    "moz-src:///browser/components/ipprotection/IPProtectionService.sys.mjs",
+    "moz-src:///toolkit/components/ipprotection/IPProtectionService.sys.mjs",
   IPProtectionStates:
-    "moz-src:///browser/components/ipprotection/IPProtectionService.sys.mjs",
+    "moz-src:///toolkit/components/ipprotection/IPProtectionService.sys.mjs",
   IPPStartupCache:
-    "moz-src:///browser/components/ipprotection/IPPStartupCache.sys.mjs",
+    "moz-src:///toolkit/components/ipprotection/IPPStartupCache.sys.mjs",
 });
 
 ChromeUtils.defineLazyGetter(
@@ -40,7 +40,10 @@ ChromeUtils.defineLazyGetter(
       .clearTimeout
 );
 
-import { ERRORS } from "chrome://browser/content/ipprotection/ipprotection-constants.mjs";
+export const ERRORS = Object.freeze({
+  GENERIC: "generic-error",
+  NETWORK: "network-error",
+});
 
 const LOG_PREF = "browser.ipProtection.log";
 const MAX_ERROR_HISTORY = 50;

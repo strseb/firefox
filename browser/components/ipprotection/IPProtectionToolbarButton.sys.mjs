@@ -2,7 +2,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { ERRORS } from "chrome://browser/content/ipprotection/ipprotection-constants.mjs";
 import { XPCOMUtils } from "resource://gre/modules/XPCOMUtils.sys.mjs";
 
 const lazy = {};
@@ -10,16 +9,17 @@ const lazy = {};
 ChromeUtils.defineESModuleGetters(lazy, {
   CustomizableUI:
     "moz-src:///browser/components/customizableui/CustomizableUI.sys.mjs",
+  ERRORS: "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs",
   IPPExceptionsManager:
-    "moz-src:///browser/components/ipprotection/IPPExceptionsManager.sys.mjs",
+    "moz-src:///toolkit/components/ipprotection/IPPExceptionsManager.sys.mjs",
   IPPNetworkUtils:
-    "moz-src:///browser/components/ipprotection/IPPNetworkUtils.sys.mjs",
+    "moz-src:///toolkit/components/ipprotection/IPPNetworkUtils.sys.mjs",
   IPPProxyManager:
-    "moz-src:///browser/components/ipprotection/IPPProxyManager.sys.mjs",
+    "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs",
   IPProtectionService:
-    "moz-src:///browser/components/ipprotection/IPProtectionService.sys.mjs",
+    "moz-src:///toolkit/components/ipprotection/IPProtectionService.sys.mjs",
   IPPProxyStates:
-    "moz-src:///browser/components/ipprotection/IPPProxyManager.sys.mjs",
+    "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs",
 });
 
 XPCOMUtils.defineLazyPreferenceGetter(
@@ -250,8 +250,8 @@ export class IPProtectionToolbarButton {
     // Show error icon when proxy manager is in ERROR state or when offline
     let hasProxyError =
       lazy.IPPProxyManager.state === lazy.IPPProxyStates.ERROR &&
-      (lazy.IPPProxyManager.errors.includes(ERRORS.GENERIC) ||
-        lazy.IPPProxyManager.errors.includes(ERRORS.NETWORK));
+      (lazy.IPPProxyManager.errors.includes(lazy.ERRORS.GENERIC) ||
+        lazy.IPPProxyManager.errors.includes(lazy.ERRORS.NETWORK));
     let isOffline = lazy.IPPNetworkUtils.isOffline;
     let isError = hasProxyError || isOffline;
 

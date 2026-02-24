@@ -17,11 +17,6 @@ export const LINKS = Object.freeze({
   SUPPORT_URL: "https://support.mozilla.org/kb/use-ip-concealment-in-firefox",
 });
 
-export const ERRORS = Object.freeze({
-  GENERIC: "generic-error",
-  NETWORK: "network-error",
-});
-
 export const SIGNIN_DATA = Object.freeze({
   where: "tab",
   entrypoint: "desktop-fx-vpn",
