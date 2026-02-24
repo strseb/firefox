@@ -9,23 +9,24 @@ ChromeUtils.defineESModuleGetters(lazy, {
   CustomizableUI:
     "moz-src:///browser/components/customizableui/CustomizableUI.sys.mjs",
   IPPEnrollAndEntitleManager:
-    "moz-src:///browser/components/ipprotection/IPPEnrollAndEntitleManager.sys.mjs",
+    "moz-src:///toolkit/components/ipprotection/IPPEnrollAndEntitleManager.sys.mjs",
   IPPExceptionsManager:
-    "moz-src:///browser/components/ipprotection/IPPExceptionsManager.sys.mjs",
+    "moz-src:///toolkit/components/ipprotection/IPPExceptionsManager.sys.mjs",
   IPPOnboardingMessage:
     "moz-src:///browser/components/ipprotection/IPPOnboardingMessageHelper.sys.mjs",
+  ERRORS: "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs",
   IPPProxyManager:
-    "moz-src:///browser/components/ipprotection/IPPProxyManager.sys.mjs",
+    "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs",
   IPPProxyStates:
-    "moz-src:///browser/components/ipprotection/IPPProxyManager.sys.mjs",
+    "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs",
   IPProtectionService:
-    "moz-src:///browser/components/ipprotection/IPProtectionService.sys.mjs",
+    "moz-src:///toolkit/components/ipprotection/IPProtectionService.sys.mjs",
   IPProtection:
     "moz-src:///browser/components/ipprotection/IPProtection.sys.mjs",
   IPPSignInWatcher:
-    "moz-src:///browser/components/ipprotection/IPPSignInWatcher.sys.mjs",
+    "moz-src:///toolkit/components/ipprotection/IPPSignInWatcher.sys.mjs",
   IPProtectionStates:
-    "moz-src:///browser/components/ipprotection/IPProtectionService.sys.mjs",
+    "moz-src:///toolkit/components/ipprotection/IPProtectionService.sys.mjs",
   SpecialMessageActions:
     "resource://messaging-system/lib/SpecialMessageActions.sys.mjs",
 });
@@ -33,7 +34,6 @@ import { XPCOMUtils } from "resource://gre/modules/XPCOMUtils.sys.mjs";
 
 import {
   BANDWIDTH,
-  ERRORS,
   ONBOARDING_PREF_FLAGS,
   LINKS,
   SIGNIN_DATA,
@@ -725,15 +725,15 @@ export class IPProtectionPanel {
     ) {
       let hasError =
         lazy.IPPProxyManager.state === lazy.IPPProxyStates.ERROR &&
-        (lazy.IPPProxyManager.errors.includes(ERRORS.GENERIC) ||
-          lazy.IPPProxyManager.errors.includes(ERRORS.NETWORK));
+        (lazy.IPPProxyManager.errors.includes(lazy.ERRORS.GENERIC) ||
+          lazy.IPPProxyManager.errors.includes(lazy.ERRORS.NETWORK));
 
       let errorType = "";
       if (hasError) {
         // Prioritize network error over generic error
-        errorType = lazy.IPPProxyManager.errors.includes(ERRORS.NETWORK)
-          ? ERRORS.NETWORK
-          : ERRORS.GENERIC;
+        errorType = lazy.IPPProxyManager.errors.includes(lazy.ERRORS.NETWORK)
+          ? lazy.ERRORS.NETWORK
+          : lazy.ERRORS.GENERIC;
       }
 
       this.setState({

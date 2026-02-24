@@ -11,11 +11,11 @@ const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
   IPPStartupCache:
-    "moz-src:///browser/components/ipprotection/IPPStartupCache.sys.mjs",
+    "moz-src:///toolkit/components/ipprotection/IPPStartupCache.sys.mjs",
   IPProtectionService:
-    "moz-src:///browser/components/ipprotection/IPProtectionService.sys.mjs",
+    "moz-src:///toolkit/components/ipprotection/IPProtectionService.sys.mjs",
   IPProtectionStates:
-    "moz-src:///browser/components/ipprotection/IPProtectionService.sys.mjs",
+    "moz-src:///toolkit/components/ipprotection/IPProtectionService.sys.mjs",
   RemoteSettings: "resource://services-settings/remote-settings.sys.mjs",
 });
 
