@@ -14,6 +14,7 @@ exclude: true
 ⚠️  breaking change and deprecation notices
 
 ## v149
+- Added [`IPProtectionController`][149.7] for managing IP protection state from GeckoView consumers.
 - Introduce the Firefox Relay APIs in `GeckoRuntimeSettings`.
   - See also the annotation [`GeckoRuntimeSettings.FirefoxRelayMode`][149.1].
 - Added experimental [`PageExtractionController`][149.2] and [`SessionPageExtractor`][149.3] for extracting the text content of a page
@@ -28,6 +29,7 @@ exclude: true
 [149.4]: {{javadoc_uri}}/GeckoSession.html#processBackPressed()
 [149.5]: https://developer.mozilla.org/en-US/docs/Web/API/CloseWatcher
 [149.6]: {{javadoc_uri}}/HandlerThread.html
+[149.7]: {{javadoc_uri}}/IPProtectionController.html
 
 ## v148
 - Introduce the harmful-addon URL-Classifier feature
@@ -1909,4 +1911,4 @@ to allow adding gecko profiler markers.
 [65.24]: {{javadoc_uri}}/CrashReporter.html#sendCrashReport(android.content.Context,android.os.Bundle,java.lang.String)
 [65.25]: {{javadoc_uri}}/GeckoResult.html
 
-[api-version]: b5b4a479d32c07f76d70de08a9280ece977cb606
+[api-version]: 520d72fe09cc032a188ff45c1feb81de437ae1dd
