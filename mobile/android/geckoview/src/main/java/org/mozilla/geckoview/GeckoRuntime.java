@@ -260,6 +260,7 @@ public final class GeckoRuntime implements Parcelable {
   private StorageController mStorageController;
   private final WebExtensionController mWebExtensionController;
   private WebPushController mPushController;
+  private IPProxyController mIPProxyController;
   private final ContentBlockingController mContentBlockingController;
   private final Autocomplete.StorageProxy mAutocompleteStorageProxy;
   private final CrashPullController.CrashPullProxy mCrashPullProxy;
@@ -1131,6 +1132,23 @@ public final class GeckoRuntime implements Parcelable {
     }
 
     return mPushController;
+  }
+
+  /**
+   * Get the IP proxy controller for this runtime. The IP proxy controller can be used to manage IP
+   * protection proxy state.
+   *
+   * @return The {@link IPProxyController} for this instance.
+   */
+  @UiThread
+  public @NonNull IPProxyController getIPProxyController() {
+    ThreadUtils.assertOnUiThread();
+
+    if (mIPProxyController == null) {
+      mIPProxyController = new IPProxyController();
+    }
+
+    return mIPProxyController;
   }
 
   /**

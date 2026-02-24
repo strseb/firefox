@@ -188,6 +188,15 @@ export class GeckoViewStartup {
             ],
           });
 
+          GeckoViewUtils.addLazyGetter(this, "GeckoViewIPProxy", {
+            module: "resource://gre/modules/GeckoViewIPProxy.sys.mjs",
+            ged: [
+              "GeckoView:IPProxy:GetState",
+              "GeckoView:IPProxy:Activate",
+              "GeckoView:IPProxy:Deactivate",
+            ],
+          });
+
           GeckoViewUtils.addLazyGetter(this, "ChildCrashHandler", {
             module: "resource://gre/modules/ChildCrashHandler.sys.mjs",
             observers: [
