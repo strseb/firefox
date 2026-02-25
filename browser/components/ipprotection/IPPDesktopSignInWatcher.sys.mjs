@@ -5,6 +5,8 @@
 const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
+  GuardianClient:
+    "moz-src:///toolkit/components/ipprotection/GuardianClient.sys.mjs",
   IPPSignInWatcher:
     "moz-src:///toolkit/components/ipprotection/IPPSignInWatcher.sys.mjs",
   IPProtectionService:
@@ -19,6 +21,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
 class IPPDesktopSignInWatcherImpl extends EventTarget {
   #signedIn = false;
   #fxaObserver = null;
+  #guardianClient = null;
 
   get isSignedIn() {
     return this.#signedIn;
@@ -28,8 +31,13 @@ class IPPDesktopSignInWatcherImpl extends EventTarget {
     this.#signedIn = signedIn;
   }
 
+  get guardianClient() {
+    return this.#guardianClient;
+  }
+
   init() {
     lazy.IPPSignInWatcher.setImplementation(this);
+    this.#guardianClient = new lazy.GuardianClient();
     this.#signedIn = Services.prefs.prefHasUserValue("services.sync.username");
   }
 

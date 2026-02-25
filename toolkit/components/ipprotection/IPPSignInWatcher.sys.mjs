@@ -24,6 +24,10 @@ class IPPSignInWatcherDefault extends EventTarget {
     this.#signedIn = signedIn;
   }
 
+  get guardianClient() {
+    return null;
+  }
+
   init() {}
   initOnStartupCompleted() {}
   uninit() {}
