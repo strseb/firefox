@@ -8,6 +8,8 @@ const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
   EventDispatcher: "resource://gre/modules/Messaging.sys.mjs",
+  GeckoViewIPPSignInWatcher:
+    "resource://gre/modules/GeckoViewIPPSignInWatcher.sys.mjs",
   IPPProxyManager:
     "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs",
   IPProtectionActivator:
@@ -26,6 +28,7 @@ function ensureInitialized() {
     return;
   }
   initialized = true;
+  lazy.IPProtectionActivator.addHelpers([lazy.GeckoViewIPPSignInWatcher]);
   lazy.IPProtectionActivator.init();
 }
 
@@ -118,6 +121,19 @@ export const GeckoViewIPProtection = {
           .catch(err => {
             aCallback.onError(`Deactivation failed: ${err}`);
           });
+        break;
+      }
+      case "GeckoView:IPProtection:SignIn": {
+        lazy.GeckoViewIPPSignInWatcher.signIn(
+          aData.token,
+          aData.type || ""
+        );
+        aCallback.onSuccess(buildStateResponse());
+        break;
+      }
+      case "GeckoView:IPProtection:SignOut": {
+        lazy.GeckoViewIPPSignInWatcher.signOut();
+        aCallback.onSuccess(buildStateResponse());
         break;
       }
     }

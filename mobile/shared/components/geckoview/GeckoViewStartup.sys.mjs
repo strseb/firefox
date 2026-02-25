@@ -194,6 +194,8 @@ export class GeckoViewStartup {
               "GeckoView:IPProtection:GetState",
               "GeckoView:IPProtection:Activate",
               "GeckoView:IPProtection:Deactivate",
+              "GeckoView:IPProtection:SignIn",
+              "GeckoView:IPProtection:SignOut",
             ],
           });
 
