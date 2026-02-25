@@ -5,6 +5,7 @@
 package org.mozilla.fenix.settings
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -95,9 +96,17 @@ class IpProtectionFragment : Fragment() {
                             b.ipProtectionSwitch.isChecked = false
                             return@launch
                         }
-                        val tokenInfo = withContext(Dispatchers.IO) {
-                            account.getAccessToken("https://identity.mozilla.com/apps/vpn")
+                        val tokenInfo = try {
+                            withContext(Dispatchers.IO) {
+                                account.getAccessToken(
+                                    "https://identity.mozilla.com/apps/vpn",
+                                )
+                            }
+                        } catch (e: Exception) {
+                            Log.e("IpProtection", "getAccessToken failed", e)
+                            null
                         }
+                        Log.d("IpProtection", "tokenInfo=$tokenInfo")
                         if (tokenInfo == null) {
                             b.ipProtectionSwitch.isEnabled = true
                             b.ipProtectionSwitch.isChecked = false
