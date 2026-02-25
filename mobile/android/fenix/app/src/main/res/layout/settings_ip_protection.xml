@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <TextView
+        android:id="@+id/ip_protection_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="2dp"
+        android:clickable="false"
+        app:lineHeight="24.sp"
+        android:text="@string/preferences_ip_protection_title"
+        android:textAppearance="@style/ListItemTextStyle"
+        android:textSize="16sp"
+        app:layout_constraintBottom_toTopOf="@id/ip_protection_summary"
+        app:layout_constraintEnd_toStartOf="@id/ip_protection_switch"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:targetApi="p" />
+
+    <TextView
+        android:id="@+id/ip_protection_summary"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        app:lineHeight="16.sp"
+        android:text="@string/preferences_ip_protection_summary"
+        android:textColor="?attr/textSecondary"
+        android:textSize="12sp"
+        app:layout_constraintBottom_toTopOf="@id/ip_protection_state"
+        app:layout_constraintEnd_toEndOf="@id/ip_protection_title"
+        app:layout_constraintStart_toStartOf="@id/ip_protection_title"
+        app:layout_constraintTop_toBottomOf="@id/ip_protection_title"
+        tools:targetApi="p" />
+
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/ip_protection_switch"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"
+        android:paddingStart="18dp"
+        android:paddingEnd="18dp"
+        android:textColor="@color/state_list_text_color"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/ip_protection_title" />
+
+    <TextView
+        android:id="@+id/ip_protection_state"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="16dp"
+        app:lineHeight="16.sp"
+        android:textColor="?attr/textSecondary"
+        android:textSize="12sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="@id/ip_protection_title"
+        app:layout_constraintStart_toStartOf="@id/ip_protection_title"
+        app:layout_constraintTop_toBottomOf="@id/ip_protection_summary"
+        tools:targetApi="p"
+        tools:text="Active" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
