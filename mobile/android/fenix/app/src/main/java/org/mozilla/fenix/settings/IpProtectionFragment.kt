@@ -8,19 +8,20 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import androidx.fragment.app.Fragment
 import org.mozilla.fenix.R
 import org.mozilla.fenix.databinding.SettingsIpProtectionBinding
 import org.mozilla.fenix.ext.components
-import org.mozilla.geckoview.IPProxyController
+import org.mozilla.geckoview.IPProtectionController
 
 class IpProtectionFragment : Fragment() {
     private var binding: SettingsIpProtectionBinding? = null
-    private var controller: IPProxyController? = null
+    private var controller: IPProtectionController? = null
 
-    private val delegate = object : IPProxyController.Delegate {
-        override fun onStateChanged(state: String, lastError: String?) {
-            updateUI(state, lastError)
+    private val delegate = object : IPProtectionController.Delegate {
+        override fun onStateChanged(info: IPProtectionController.StateInfo) {
+            updateUI(info)
         }
     }
 
@@ -32,14 +33,16 @@ class IpProtectionFragment : Fragment() {
         val b = SettingsIpProtectionBinding.inflate(inflater)
         binding = b
 
+        initRowLabels(b)
+
         val runtime = requireContext().components.core.geckoRuntime
-        val ctrl = runtime.getIPProxyController()
+        val ctrl = runtime.getIPProtectionController()
         controller = ctrl
 
         ctrl.setDelegate(delegate)
-        ctrl.state.accept { stateInfo ->
-            if (stateInfo != null) {
-                updateUI(stateInfo.state, stateInfo.lastError)
+        ctrl.state.accept { info ->
+            if (info != null) {
+                updateUI(info)
             }
         }
 
@@ -53,18 +56,31 @@ class IpProtectionFragment : Fragment() {
         super.onDestroyView()
     }
 
-    private fun updateUI(state: String, lastError: String?) {
+    private fun initRowLabels(b: SettingsIpProtectionBinding) {
+        b.rowServiceState.root.findViewById<TextView>(R.id.row_label).text = "Service State"
+        b.rowProxyState.root.findViewById<TextView>(R.id.row_label).text = "Proxy State"
+        b.rowLastError.root.findViewById<TextView>(R.id.row_label).text = "Last Error"
+        b.rowRemaining.root.findViewById<TextView>(R.id.row_label).text = "Remaining"
+        b.rowMax.root.findViewById<TextView>(R.id.row_label).text = "Max"
+        b.rowResetTime.root.findViewById<TextView>(R.id.row_label).text = "Reset Time"
+    }
+
+    private fun setRowValue(row: View, value: String) {
+        row.findViewById<TextView>(R.id.row_value).text = value
+    }
+
+    private fun updateUI(info: IPProtectionController.StateInfo) {
         val b = binding ?: return
-        val isActive = state == "active" || state == "activating"
+        val proxyState = info.proxyState
+        val isActive = proxyState == "active" || proxyState == "activating"
 
         b.ipProtectionSwitch.setOnCheckedChangeListener(null)
         b.ipProtectionSwitch.isChecked = isActive
-        b.ipProtectionSwitch.isEnabled = state != "activating"
+        b.ipProtectionSwitch.isEnabled = proxyState != "activating"
 
         b.ipProtectionSwitch.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
                 b.ipProtectionSwitch.isEnabled = false
-                b.ipProtectionState.setText(R.string.ip_protection_state_activating)
                 controller?.activate()?.accept(
                     { /* delegate will update UI */ },
                     {
@@ -77,20 +93,14 @@ class IpProtectionFragment : Fragment() {
             }
         }
 
-        val stateText = when (state) {
-            "active" -> getString(R.string.ip_protection_state_active)
-            "activating" -> getString(R.string.ip_protection_state_activating)
-            "not-ready" -> getString(R.string.ip_protection_state_not_ready)
-            "paused" -> getString(R.string.ip_protection_state_paused)
-            "error" -> {
-                if (lastError != null) {
-                    "${getString(R.string.ip_protection_state_error)}: $lastError"
-                } else {
-                    getString(R.string.ip_protection_state_error)
-                }
-            }
-            else -> state
-        }
-        b.ipProtectionState.text = stateText
+        setRowValue(b.rowServiceState.root, info.serviceState)
+        setRowValue(b.rowProxyState.root, proxyState)
+        setRowValue(b.rowLastError.root, info.lastError ?: "-")
+        setRowValue(
+            b.rowRemaining.root,
+            if (info.remaining >= 0) info.remaining.toString() else "-",
+        )
+        setRowValue(b.rowMax.root, if (info.max >= 0) info.max.toString() else "-")
+        setRowValue(b.rowResetTime.root, info.resetTime ?: "-")
     }
 }

@@ -829,9 +829,9 @@ class SettingsFragment : PreferenceFragmentCompat() {
     private fun setupIpProtectionPreferences() {
         val pref = requirePreference<Preference>(R.string.pref_key_ip_protection_settings)
         val runtime = requireComponents.core.geckoRuntime
-        runtime.getIPProxyController().state.accept { stateInfo ->
+        runtime.getIPProtectionController().state.accept { stateInfo ->
             if (stateInfo != null) {
-                pref.summary = when (stateInfo.state) {
+                pref.summary = when (stateInfo.proxyState) {
                     "active", "activating" -> getString(R.string.preferences_ip_protection_on)
                     else -> getString(R.string.preferences_ip_protection_off)
                 }
