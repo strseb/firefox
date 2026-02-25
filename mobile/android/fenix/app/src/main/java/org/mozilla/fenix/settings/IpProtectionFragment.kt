@@ -10,6 +10,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.mozilla.fenix.R
 import org.mozilla.fenix.databinding.SettingsIpProtectionBinding
 import org.mozilla.fenix.ext.components
@@ -81,15 +85,49 @@ class IpProtectionFragment : Fragment() {
         b.ipProtectionSwitch.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
                 b.ipProtectionSwitch.isEnabled = false
-                controller?.activate()?.accept(
-                    { /* delegate will update UI */ },
-                    {
+                viewLifecycleOwner.lifecycleScope.launch {
+                    try {
+                        val accountManager =
+                            requireContext().components.backgroundServices.accountManager
+                        val account = accountManager.authenticatedAccount()
+                        if (account == null) {
+                            b.ipProtectionSwitch.isEnabled = true
+                            b.ipProtectionSwitch.isChecked = false
+                            return@launch
+                        }
+                        val tokenInfo = withContext(Dispatchers.IO) {
+                            account.getAccessToken("https://identity.mozilla.com/apps/vpn")
+                        }
+                        if (tokenInfo == null) {
+                            b.ipProtectionSwitch.isEnabled = true
+                            b.ipProtectionSwitch.isChecked = false
+                            return@launch
+                        }
+                        controller?.signIn(tokenInfo.token, "Bearer")?.accept(
+                            {
+                                controller?.activate()?.accept(
+                                    { /* delegate will update UI */ },
+                                    {
+                                        b.ipProtectionSwitch.isEnabled = true
+                                        b.ipProtectionSwitch.isChecked = false
+                                    },
+                                )
+                            },
+                            {
+                                b.ipProtectionSwitch.isEnabled = true
+                                b.ipProtectionSwitch.isChecked = false
+                            },
+                        )
+                    } catch (e: Exception) {
                         b.ipProtectionSwitch.isEnabled = true
                         b.ipProtectionSwitch.isChecked = false
-                    },
-                )
+                    }
+                }
             } else {
-                controller?.deactivate()
+                controller?.deactivate()?.accept(
+                    { controller?.signOut() },
+                    { /* ignore signOut errors on deactivate */ },
+                )
             }
         }
 
