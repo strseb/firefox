@@ -2201,6 +2201,8 @@ package org.mozilla.geckoview {
     method @Nullable @UiThread public IPProtectionController.Delegate getDelegate();
     method @NonNull @UiThread public GeckoResult<IPProtectionController.StateInfo> getState();
     method @UiThread public void setDelegate(@Nullable IPProtectionController.Delegate);
+    method @NonNull @UiThread public GeckoResult<IPProtectionController.StateInfo> signIn(@NonNull String, @NonNull String);
+    method @NonNull @UiThread public GeckoResult<IPProtectionController.StateInfo> signOut();
   }
 
   public static interface IPProtectionController.Delegate {

@@ -140,6 +140,38 @@ public class IPProtectionController {
         .map(bundle -> null);
   }
 
+  /**
+   * Signs in to IP protection with the given authentication token.
+   *
+   * @param token The authentication token.
+   * @param type The token type (e.g. "Bearer"), or empty string.
+   * @return A {@link GeckoResult} that resolves to the updated {@link StateInfo}.
+   */
+  @UiThread
+  public @NonNull GeckoResult<StateInfo> signIn(
+      final @NonNull String token, final @NonNull String type) {
+    ThreadUtils.assertOnUiThread();
+    final GeckoBundle bundle = new GeckoBundle(2);
+    bundle.putString("token", token);
+    bundle.putString("type", type);
+    return EventDispatcher.getInstance()
+        .queryBundle("GeckoView:IPProtection:SignIn", bundle)
+        .map(StateInfo::new);
+  }
+
+  /**
+   * Signs out of IP protection.
+   *
+   * @return A {@link GeckoResult} that resolves to the updated {@link StateInfo}.
+   */
+  @UiThread
+  public @NonNull GeckoResult<StateInfo> signOut() {
+    ThreadUtils.assertOnUiThread();
+    return EventDispatcher.getInstance()
+        .queryBundle("GeckoView:IPProtection:SignOut", null)
+        .map(StateInfo::new);
+  }
+
   private class EventListener implements BundleEventListener {
     @Override
     public void handleMessage(
