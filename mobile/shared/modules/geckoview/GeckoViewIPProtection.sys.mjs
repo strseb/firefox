@@ -12,9 +12,11 @@ ChromeUtils.defineESModuleGetters(lazy, {
     "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs",
   IPProtectionActivator:
     "moz-src:///toolkit/components/ipprotection/IPProtectionActivator.sys.mjs",
+  IPProtectionService:
+    "moz-src:///toolkit/components/ipprotection/IPProtectionService.sys.mjs",
 });
 
-const { debug, warn } = GeckoViewUtils.initLogging("GeckoViewIPProxy");
+const { debug, warn } = GeckoViewUtils.initLogging("GeckoViewIPProtection");
 
 let initialized = false;
 let listening = false;
@@ -34,17 +36,24 @@ function ensureListening() {
   listening = true;
   lazy.IPPProxyManager.addEventListener(
     "IPPProxyManager:StateChanged",
-    GeckoViewIPProxy
+    GeckoViewIPProtection
   );
   lazy.IPPProxyManager.addEventListener(
     "IPPProxyManager:UsageChanged",
-    GeckoViewIPProxy
+    GeckoViewIPProtection
+  );
+  lazy.IPProtectionService.addEventListener(
+    "IPProtectionService:StateChanged",
+    GeckoViewIPProtection
   );
 }
 
 function buildStateResponse() {
   const manager = lazy.IPPProxyManager;
-  const response = { state: manager.state };
+  const response = {
+    serviceState: lazy.IPProtectionService.state,
+    proxyState: manager.state,
+  };
 
   if (manager.state === "error" && manager.errors.length > 0) {
     response.lastError = manager.errors[manager.errors.length - 1];
@@ -62,39 +71,21 @@ function buildStateResponse() {
   return response;
 }
 
-export const GeckoViewIPProxy = {
+function sendStateChanged() {
+  lazy.EventDispatcher.instance.sendRequest(
+    "GeckoView:IPProtection:StateChanged",
+    buildStateResponse()
+  );
+}
+
+export const GeckoViewIPProtection = {
   handleEvent(event) {
     switch (event.type) {
-      case "IPPProxyManager:StateChanged": {
-        const data = { state: event.detail.state };
-        const manager = lazy.IPPProxyManager;
-        if (
-          event.detail.state === "error" &&
-          manager.errors.length > 0
-        ) {
-          data.lastError = manager.errors[manager.errors.length - 1];
-        }
-        lazy.EventDispatcher.instance.sendRequest(
-          "GeckoView:IPProxy:StateChanged",
-          data
-        );
+      case "IPPProxyManager:StateChanged":
+      case "IPPProxyManager:UsageChanged":
+      case "IPProtectionService:StateChanged":
+        sendStateChanged();
         break;
-      }
-      case "IPPProxyManager:UsageChanged": {
-        const usage = event.detail.usage;
-        const data = {
-          remaining: usage.remaining,
-          max: usage.max,
-        };
-        if (usage.reset) {
-          data.resetTime = usage.reset.toString();
-        }
-        lazy.EventDispatcher.instance.sendRequest(
-          "GeckoView:IPProxy:UsageChanged",
-          data
-        );
-        break;
-      }
     }
   },
 
@@ -105,30 +96,24 @@ export const GeckoViewIPProxy = {
     ensureListening();
 
     switch (aEvent) {
-      case "GeckoView:IPProxy:GetState": {
+      case "GeckoView:IPProtection:GetState": {
         aCallback.onSuccess(buildStateResponse());
         break;
       }
-      case "GeckoView:IPProxy:Activate": {
+      case "GeckoView:IPProtection:Activate": {
         lazy.IPPProxyManager.start()
           .then(() => {
-            aCallback.onSuccess({
-              ok: true,
-              state: lazy.IPPProxyManager.state,
-            });
+            aCallback.onSuccess(buildStateResponse());
           })
           .catch(err => {
             aCallback.onError(`Activation failed: ${err}`);
           });
         break;
       }
-      case "GeckoView:IPProxy:Deactivate": {
+      case "GeckoView:IPProtection:Deactivate": {
         lazy.IPPProxyManager.stop()
           .then(() => {
-            aCallback.onSuccess({
-              ok: true,
-              state: lazy.IPPProxyManager.state,
-            });
+            aCallback.onSuccess(buildStateResponse());
           })
           .catch(err => {
             aCallback.onError(`Deactivation failed: ${err}`);

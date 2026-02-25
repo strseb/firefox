@@ -102,7 +102,7 @@ import org.mozilla.geckoview.GeckoSession;
 import org.mozilla.geckoview.GeckoSessionSettings;
 import org.mozilla.geckoview.GeckoView;
 import org.mozilla.geckoview.HandlerThread;
-import org.mozilla.geckoview.IPProxyController;
+import org.mozilla.geckoview.IPProtectionController;
 import org.mozilla.geckoview.Image;
 import org.mozilla.geckoview.MediaSession;
 import org.mozilla.geckoview.OrientationController;
@@ -950,7 +950,7 @@ package org.mozilla.geckoview {
     method @Nullable @UiThread public CrashPullController.Delegate getCrashPullDelegate();
     method @NonNull @UiThread public static synchronized GeckoRuntime getDefault(@NonNull Context);
     method @Nullable @UiThread public GeckoRuntime.Delegate getDelegate();
-    method @NonNull @UiThread public IPProxyController getIPProxyController();
+    method @NonNull @UiThread public IPProtectionController getIPProtectionController();
     method @NonNull @UiThread public OrientationController getOrientationController();
     method @AnyThread @Nullable public GeckoPreferenceController.Observer.Delegate getPreferencesObserverDelegate();
     method @Nullable @UiThread public GeckoRuntime.ServiceWorkerDelegate getServiceWorkerDelegate();
@@ -2195,26 +2195,26 @@ package org.mozilla.geckoview {
   @Documented @Retention(value=RetentionPolicy.CLASS) @Target(value={ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.TYPE, ElementType.PARAMETER}) public interface HandlerThread {
   }
 
-  public class IPProxyController {
+  public class IPProtectionController {
     method @NonNull @UiThread public GeckoResult<Void> activate();
     method @NonNull @UiThread public GeckoResult<Void> deactivate();
-    method @Nullable @UiThread public IPProxyController.Delegate getDelegate();
-    method @NonNull @UiThread public GeckoResult<IPProxyController.StateInfo> getState();
-    method @UiThread public void setDelegate(@Nullable IPProxyController.Delegate);
+    method @Nullable @UiThread public IPProtectionController.Delegate getDelegate();
+    method @NonNull @UiThread public GeckoResult<IPProtectionController.StateInfo> getState();
+    method @UiThread public void setDelegate(@Nullable IPProtectionController.Delegate);
   }
 
-  public static interface IPProxyController.Delegate {
-    method @UiThread default public void onStateChanged(@NonNull String, @Nullable String);
-    method @UiThread default public void onUsageChanged(int, int, @Nullable String);
+  public static interface IPProtectionController.Delegate {
+    method @UiThread default public void onStateChanged(@NonNull IPProtectionController.StateInfo);
   }
 
-  public static class IPProxyController.StateInfo {
+  public static class IPProtectionController.StateInfo {
     ctor protected StateInfo();
     field @Nullable public final String lastError;
     field public final int max;
+    field @NonNull public final String proxyState;
     field public final int remaining;
     field @Nullable public final String resetTime;
-    field @NonNull public final String state;
+    field @NonNull public final String serviceState;
   }
 
   @AnyThread public class Image {

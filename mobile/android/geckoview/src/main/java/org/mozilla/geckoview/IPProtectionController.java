@@ -15,15 +15,18 @@ import org.mozilla.gecko.util.EventCallback;
 import org.mozilla.gecko.util.GeckoBundle;
 import org.mozilla.gecko.util.ThreadUtils;
 
-/** Controller for managing IP protection proxy state. */
-public class IPProxyController {
+/** Controller for managing IP protection state. */
+public class IPProtectionController {
 
-  /** Holds information about the current IP proxy state and usage. */
+  /** Holds information about the current IP protection state and usage. */
   public static class StateInfo {
-    /** The current proxy state. */
-    public final @NonNull String state;
+    /** The current service state (e.g. "uninitialized", "ready"). */
+    public final @NonNull String serviceState;
 
-    /** The last error string, if the state is "error". */
+    /** The current proxy state (e.g. "not-ready", "active"). */
+    public final @NonNull String proxyState;
+
+    /** The last error string, if the proxy state is "error". */
     public final @Nullable String lastError;
 
     /** Remaining usage allowance, or -1 if unavailable. */
@@ -36,7 +39,8 @@ public class IPProxyController {
     public final @Nullable String resetTime;
 
     protected StateInfo() {
-      state = "";
+      serviceState = "";
+      proxyState = "";
       lastError = null;
       remaining = -1;
       max = -1;
@@ -44,7 +48,8 @@ public class IPProxyController {
     }
 
     /* package */ StateInfo(final @NonNull GeckoBundle bundle) {
-      state = bundle.getString("state", "");
+      serviceState = bundle.getString("serviceState", "");
+      proxyState = bundle.getString("proxyState", "");
       lastError = bundle.getString("lastError");
       remaining = bundle.getInt("remaining", -1);
       max = bundle.getInt("max", -1);
@@ -52,37 +57,24 @@ public class IPProxyController {
     }
   }
 
-  /** Delegate for receiving IP proxy state and usage notifications. */
+  /** Delegate for receiving IP protection state notifications. */
   public interface Delegate {
     /**
-     * Called when the IP proxy state changes.
+     * Called when the IP protection state changes.
      *
-     * @param state The new proxy state.
-     * @param lastError The last error string, or null.
+     * @param info The current state information.
      */
     @UiThread
-    default void onStateChanged(final @NonNull String state, final @Nullable String lastError) {}
-
-    /**
-     * Called when the IP proxy usage changes.
-     *
-     * @param remaining Remaining usage allowance.
-     * @param max Maximum usage allowance.
-     * @param resetTime The time when usage resets, or null.
-     */
-    @UiThread
-    default void onUsageChanged(
-        final int remaining, final int max, final @Nullable String resetTime) {}
+    default void onStateChanged(final @NonNull StateInfo info) {}
   }
 
   private Delegate mDelegate;
   private final BundleEventListener mEventListener;
 
-  /* package */ IPProxyController() {
+  /* package */ IPProtectionController() {
     mEventListener = new EventListener();
     EventDispatcher.getInstance()
-        .registerUiThreadListener(
-            mEventListener, "GeckoView:IPProxy:StateChanged", "GeckoView:IPProxy:UsageChanged");
+        .registerUiThreadListener(mEventListener, "GeckoView:IPProtection:StateChanged");
   }
 
   /**
@@ -109,7 +101,7 @@ public class IPProxyController {
   }
 
   /**
-   * Gets the current IP proxy state.
+   * Gets the current IP protection state.
    *
    * @return A {@link GeckoResult} that resolves to a {@link StateInfo} containing the current
    *     state.
@@ -118,7 +110,7 @@ public class IPProxyController {
   public @NonNull GeckoResult<StateInfo> getState() {
     ThreadUtils.assertOnUiThread();
     return EventDispatcher.getInstance()
-        .queryBundle("GeckoView:IPProxy:GetState", null)
+        .queryBundle("GeckoView:IPProtection:GetState", null)
         .map(StateInfo::new);
   }
 
@@ -131,7 +123,7 @@ public class IPProxyController {
   public @NonNull GeckoResult<Void> activate() {
     ThreadUtils.assertOnUiThread();
     return EventDispatcher.getInstance()
-        .queryBundle("GeckoView:IPProxy:Activate", null)
+        .queryBundle("GeckoView:IPProtection:Activate", null)
         .map(bundle -> null);
   }
 
@@ -144,7 +136,7 @@ public class IPProxyController {
   public @NonNull GeckoResult<Void> deactivate() {
     ThreadUtils.assertOnUiThread();
     return EventDispatcher.getInstance()
-        .queryBundle("GeckoView:IPProxy:Deactivate", null)
+        .queryBundle("GeckoView:IPProtection:Deactivate", null)
         .map(bundle -> null);
   }
 
@@ -156,14 +148,8 @@ public class IPProxyController {
         return;
       }
 
-      switch (event) {
-        case "GeckoView:IPProxy:StateChanged":
-          mDelegate.onStateChanged(message.getString("state", ""), message.getString("lastError"));
-          break;
-        case "GeckoView:IPProxy:UsageChanged":
-          mDelegate.onUsageChanged(
-              message.getInt("remaining"), message.getInt("max"), message.getString("resetTime"));
-          break;
+      if ("GeckoView:IPProtection:StateChanged".equals(event)) {
+        mDelegate.onStateChanged(new StateInfo(message));
       }
     }
   }
