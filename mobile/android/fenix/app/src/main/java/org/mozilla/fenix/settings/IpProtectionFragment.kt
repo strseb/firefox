@@ -150,4 +150,5 @@ class IpProtectionFragment : Fragment() {
         setRowValue(b.rowMax.root, if (info.max >= 0) info.max.toString() else "-")
         setRowValue(b.rowResetTime.root, info.resetTime ?: "-")
     }
+
 }
