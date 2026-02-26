@@ -38,6 +38,9 @@ if (Services.appinfo.processType !== Services.appinfo.PROCESS_TYPE_DEFAULT) {
  *
  */
 export class GuardianClient {
+  static mockTokenResponse = `{"token":"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjdmMWIyZjAyNWRkM2I5ZmEifQ.eyJzdWIiOiIyODMyOTgiLCJhdWQiOiJodHRwczovL3Zwbi5tb3ppbGxhLm9yZyIsImlhdCI6MTc3MjExNjk5NCwibmJmIjoxNzcyMTE2OTkzLCJleHAiOjE3NzIyMDMzOTQsImlzcyI6InZwbi5tb3ppbGxhLm9yZyJ9.lXckKKOkW0paJnYG_q_26l8zc9pj871igs5gVFQpredUnxHXA9X9jLzhvG3MSUS-ALdX-OaV0IMawMdHbNjqZzzliM8MzW-kW_USKxW_ncB8ReUwPAyLPbxtopag4_HbVdsuhTy3f59SrPKzCzVZs6WV6cAfRaiZ0HT44v0xvApwphMNCnh7RVJMMdfBQd7rkHaA5m1IO4p7XM7GuMJRmFlYUCAWu3m-LWmnhLOtigsfk88lk9l4AT8ro1BMoXtXSC7yvVUU9WbNg2JveWYEBCv1jkgIgbXNNO_arVk9Rs9ZzmzAPaiZ05Rf7Q2RqpCJR_MlDPQoCy9acJY38wDtig"}`;
+  static mockUserInfoResponse = true;
+
   /**
    * @param {typeof gConfig} [config]
    */
@@ -179,6 +182,21 @@ export class GuardianClient {
    * - 5xx: Internal guardian error.
    */
   async fetchProxyPass() {
+    if (GuardianClient.mockTokenResponse) {
+      const response = new Response(GuardianClient.mockTokenResponse, {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+      try {
+        const pass = await ProxyPass.fromResponse(response);
+        if (!pass) {
+          return { status: 200, error: "invalid_response", usage: null };
+        }
+        return { pass, status: 200, usage: null };
+      } catch (error) {
+        return { status: 200, error: "parse_error", usage: null };
+      }
+    }
     const response = await this.withToken(async token => {
       return await fetch(this.#tokenURL, {
         method: "GET",
@@ -237,6 +255,21 @@ export class GuardianClient {
    * - 401: The FxA token was rejected, probably guardian and fxa mismatch. (i.e guardian-stage and fxa-prod)
    */
   async fetchUserInfo() {
+    if (GuardianClient.mockUserInfoResponse) {
+      return {
+        status: 200,
+        entitlement: new Entitlement({
+          autostart: false,
+          created_at: new Date().toISOString(),
+          limited_bandwidth: true,
+          location_controls: false,
+          subscribed: false,
+          uid: 0,
+          website_inclusion: false,
+          maxBytes: "0",
+        }),
+      };
+    }
     const response = await this.withToken(async token => {
       return fetch(this.#statusURL, {
         method: "GET",
