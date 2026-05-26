@@ -179,6 +179,18 @@ export const GeckoViewIPProtection = {
           });
         break;
       }
+      case "GeckoView:IPProtection:RefreshUsage": {
+        lazy.IPPProxyManager.refreshUsage()
+          .then(() => {
+            aCallback.onSuccess();
+          })
+          .catch(err => {
+            aCallback.onError(
+              typeof err === "string" ? err : (err?.message ?? "generic-error")
+            );
+          });
+        break;
+      }
     }
   },
 };

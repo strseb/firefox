@@ -314,4 +314,22 @@ class IPProtectionControllerTest : BaseSessionTest() {
             sessionRule.waitForResult(ipProtectionController.notifySignInStateChanged(true))
         }
     }
+
+    @Test
+    fun refreshUsageDispatchesEventAndResolves() {
+        val eventReceived = GeckoResult<Void>()
+        val listener = BundleEventListener { _, _, callback ->
+            eventReceived.complete(null)
+            callback?.sendSuccess(null)
+        }
+        EventDispatcher.getInstance()
+            .registerUiThreadListener(listener, "GeckoView:IPProtection:RefreshUsage")
+        try {
+            sessionRule.waitForResult(ipProtectionController.refreshUsage())
+            sessionRule.waitForResult(eventReceived)
+        } finally {
+            EventDispatcher.getInstance()
+                .unregisterUiThreadListener(listener, "GeckoView:IPProtection:RefreshUsage")
+        }
+    }
 }
