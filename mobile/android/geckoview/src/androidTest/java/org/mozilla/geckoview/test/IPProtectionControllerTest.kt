@@ -314,4 +314,35 @@ class IPProtectionControllerTest : BaseSessionTest() {
             sessionRule.waitForResult(ipProtectionController.notifySignInStateChanged(true))
         }
     }
+
+    @Test
+    fun refreshUsageInvokesDelegate() {
+        val received = GeckoResult<IPProtectionController.UsageInfo>()
+        ipProtectionController.setDelegate(
+            object : IPProtectionController.Delegate {
+                override fun onUsageChanged(info: IPProtectionController.UsageInfo) {
+                    received.complete(info)
+                }
+            },
+        )
+        val listener = BundleEventListener { _, _, callback ->
+            val bundle = GeckoBundle()
+            bundle.putLong("remaining", 250L)
+            bundle.putLong("max", 1000L)
+            EventDispatcher.getInstance()
+                .dispatch("GeckoView:IPProtection:IPPProxyManager:UsageChanged", bundle)
+            callback?.sendSuccess(null)
+        }
+        EventDispatcher.getInstance()
+            .registerUiThreadListener(listener, "GeckoView:IPProtection:RefreshUsage")
+        try {
+            sessionRule.waitForResult(ipProtectionController.refreshUsage())
+            val info = sessionRule.waitForResult(received)
+            assertThat(info.remaining, equalTo(250L))
+            assertThat(info.max, equalTo(1000L))
+        } finally {
+            EventDispatcher.getInstance()
+                .unregisterUiThreadListener(listener, "GeckoView:IPProtection:RefreshUsage")
+        }
+    }
 }
