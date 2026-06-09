@@ -200,6 +200,18 @@ class IPProtectionFeature(
         handler?.uninit()
     }
 
+    /**
+     * Requests a refresh of the proxy usage information. No-ops if the handler has not been
+     * registered yet. The updated usage arrives asynchronously via the engine state delegate.
+     */
+    fun refreshUsage() {
+        mainScope.launch {
+            withContext(Dispatchers.Main) {
+                handler?.refreshUsage()
+            }
+        }
+    }
+
     private suspend fun observeToggle() = withContext(Dispatchers.Main) {
         // Dedupe over the nullable so `true -> null -> true` reads as two edges, not one.
         store.flow()

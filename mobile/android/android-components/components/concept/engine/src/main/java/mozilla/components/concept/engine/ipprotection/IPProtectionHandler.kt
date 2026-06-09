@@ -48,6 +48,12 @@ interface IPProtectionHandler {
     fun uninit()
 
     /**
+     * Requests a refresh of the proxy usage information. The updated usage is delivered
+     * asynchronously through the registered delegate.
+     */
+    fun refreshUsage()
+
+    /**
      * Sets the [AuthProvider] used to supply authentication tokens to the IP protection service.
      * Pass null to sign out.
      *

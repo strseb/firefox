@@ -65,6 +65,10 @@ internal class GeckoIPProtectionHandler(
         runtime.ipProtectionController.uninit()
     }
 
+    override fun refreshUsage() {
+        runtime.ipProtectionController.refreshUsage()
+    }
+
     override fun getState(onResult: (ServiceState) -> Unit) {
         runtime.ipProtectionController.serviceState.then<Int>(
             { serviceState ->

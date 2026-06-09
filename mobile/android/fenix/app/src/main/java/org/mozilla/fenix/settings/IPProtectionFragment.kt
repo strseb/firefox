@@ -182,5 +182,6 @@ class IPProtectionFragment : Fragment(), SystemInsetsPaddedFragment {
     override fun onResume() {
         super.onResume()
         hideToolbar()
+        requireComponents.ipProtection.feature.refreshUsage()
     }
 }
