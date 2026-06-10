@@ -21,6 +21,7 @@ exclude: true
 - Added [`IPProtectionController.refreshUsage`][153.5] to request a refresh of proxy usage information, delivered asynchronously via [`Delegate#onUsageChanged`][153.6].
   ([bug 2042799]({{bugzilla}}2042799))
 - Added [`IPProtectionController.getServerList`][153.7] and [`IPProtectionController.Country`][153.8] to retrieve the list of countries available in the proxy serverlist.
+- Added [`IPProtectionController.activate(Country)`][153.9] to activate the proxy routing through a selected country.
 
 [153.1]: {{javadoc_uri}}/GeckoSession.ScrollPositionUpdate.SourceType.html
 [153.2]: {{javadoc_uri}}/GeckoSession.ScrollPositionUpdate.html#source
@@ -30,6 +31,7 @@ exclude: true
 [153.6]: {{javadoc_uri}}/IPProtectionController.Delegate.html#onUsageChanged(org.mozilla.geckoview.IPProtectionController.UsageInfo)
 [153.7]: {{javadoc_uri}}/IPProtectionController.html#getServerList()
 [153.8]: {{javadoc_uri}}/IPProtectionController.Country.html
+[153.9]: {{javadoc_uri}}/IPProtectionController.html#activate(org.mozilla.geckoview.IPProtectionController.Country)
 
 ## v152
 - Added [`WebExtensionController.INSTALLATION_METHOD_RTAMO`][152.1], which should be used when a `WebExtension` is installed for the RTAMO feature. ([bug 2029607]({{bugzilla}}2029607))
@@ -1993,4 +1995,4 @@ to allow adding gecko profiler markers.
 [65.24]: {{javadoc_uri}}/CrashReporter.html#sendCrashReport(android.content.Context,android.os.Bundle,java.lang.String)
 [65.25]: {{javadoc_uri}}/GeckoResult.html
 
-[api-version]: 33d26a0c254812faa00b9b5ba41055d25842f665
+[api-version]: e32264a4f6fe764ff42cf9266faa52991d330717
