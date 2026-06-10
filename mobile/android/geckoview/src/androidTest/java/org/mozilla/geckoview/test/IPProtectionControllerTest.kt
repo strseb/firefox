@@ -316,6 +316,40 @@ class IPProtectionControllerTest : BaseSessionTest() {
     }
 
     @Test
+    fun getServerListParsesCountries() {
+        val listener = BundleEventListener { _, _, callback ->
+            val response = GeckoBundle()
+            response.putBundleArray(
+                "countries",
+                arrayOf(
+                    GeckoBundle().apply {
+                        putString("code", "US")
+                        putBoolean("available", true)
+                    },
+                    GeckoBundle().apply {
+                        putString("code", "DE")
+                        putBoolean("available", false)
+                    },
+                ),
+            )
+            callback?.sendSuccess(response)
+        }
+        EventDispatcher.getInstance()
+            .registerUiThreadListener(listener, "GeckoView:IPProtection:ServerList:GetList")
+        try {
+            val countries = sessionRule.waitForResult(ipProtectionController.getServerList())
+            assertThat(countries.size, equalTo(2))
+            assertThat(countries[0].code, equalTo("US"))
+            assertThat(countries[0].available, equalTo(true))
+            assertThat(countries[1].code, equalTo("DE"))
+            assertThat(countries[1].available, equalTo(false))
+        } finally {
+            EventDispatcher.getInstance()
+                .unregisterUiThreadListener(listener, "GeckoView:IPProtection:ServerList:GetList")
+        }
+    }
+
+    @Test
     fun refreshUsageInvokesDelegate() {
         val received = GeckoResult<IPProtectionController.UsageInfo>()
         ipProtectionController.setDelegate(
