@@ -8,8 +8,10 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -18,6 +20,7 @@ import androidx.fragment.compose.content
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import mozilla.components.ExperimentalAndroidComponentsApi
+import mozilla.components.concept.engine.ipprotection.IPProtectionHandler
 import mozilla.components.concept.engine.ipprotection.ServiceState
 import mozilla.components.feature.ipprotection.IPProtectionFxaAuthFlow
 import mozilla.components.feature.ipprotection.IPProtectionFxaAuthFlow.Companion.INTENT_ON_COMPLETE
@@ -25,6 +28,7 @@ import mozilla.components.feature.ipprotection.IPProtectionWarningBinding
 import mozilla.components.feature.ipprotection.debug.IPProtectionStateDebugContent
 import mozilla.components.feature.ipprotection.store.IPProtectionAction
 import mozilla.components.feature.ipprotection.store.state.AccountStatus
+import mozilla.components.feature.ipprotection.store.state.Authorized
 import mozilla.components.feature.ipprotection.store.state.IPProtectionState
 import mozilla.components.lib.state.ext.observeAsComposableState
 import mozilla.components.support.base.feature.ViewBoundFeatureWrapper
@@ -67,16 +71,43 @@ class IPProtectionFragment : Fragment(), SystemInsetsPaddedFragment {
         // To make the transition smoother, we prevent the fragment from drawing UI in that case.
         if (shouldHideUi(state)) return@content
 
+        var countries by remember { mutableStateOf(emptyList<IPProtectionHandler.Country>()) }
+        var selectedCountryCode by remember { mutableStateOf<String?>(null) }
+
+        LaunchedEffect(state.readyToUse()) {
+            if (state.readyToUse()) {
+                requireComponents.ipProtection.feature.getServerList { countries = it }
+            }
+        }
+
         FirefoxTheme {
             IPProtectionScreen(
                 state = state,
                 readyToUse = state.readyToUse(),
                 syncingData = state.syncingData(),
+                countries = countries,
+                selectedCountryCode = selectedCountryCode,
+                onCountrySelected = { code ->
+                    selectedCountryCode = code
+                    // When already active, clicking a country switches the connection to it.
+                    if (state.proxyStatus is Authorized.Active) {
+                        requireComponents.ipProtection.feature.switchTo(
+                            IPProtectionHandler.Country(code = code, available = true),
+                        )
+                    }
+                },
                 onVpnToggle = { enabled ->
                     if (enabled) {
                         requireComponents.settings.hasAlreadyUsedVpn = true
                     }
-                    requireComponents.ipProtection.store.dispatch(IPProtectionAction.Toggle)
+                    val code = selectedCountryCode
+                    if (enabled && code != null) {
+                        requireComponents.ipProtection.feature.activate(
+                            IPProtectionHandler.Country(code = code, available = true),
+                        )
+                    } else {
+                        requireComponents.ipProtection.store.dispatch(IPProtectionAction.Toggle)
+                    }
                 },
                 onLearnMoreClick = {
                     Vpn.settingsLearnMoreTapped.record(NoExtras())
@@ -182,5 +213,6 @@ class IPProtectionFragment : Fragment(), SystemInsetsPaddedFragment {
     override fun onResume() {
         super.onResume()
         hideToolbar()
+        requireComponents.ipProtection.feature.refreshUsage()
     }
 }
