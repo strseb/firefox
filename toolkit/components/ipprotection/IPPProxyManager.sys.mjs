@@ -114,7 +114,7 @@ const LOG_PREF = "browser.ipProtection.log";
 
 ChromeUtils.defineLazyGetter(lazy, "logConsole", function () {
   return console.createInstance({
-    prefix: "IPPProxyManager",
+    prefix: "IPP_ProxyManager",
     maxLogLevel: Services.prefs.getBoolPref(LOG_PREF, false) ? "Debug" : "Warn",
   });
 });
