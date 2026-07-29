@@ -21,6 +21,8 @@ exclude: true
 - ⚠️ Added [`PageMetadata.isGated`][156.5] to report whether a page declares its content to be gated,
     for example behind a paywall or a registration wall. This adds a parameter to the
     [`PageMetadata`][156.6] constructor.
+- Added experimental [`IPProtectionController.AuthProvider#onTokenRejected`][156.7] so embedders can
+    drop an authentication token that was rejected and mint a fresh one for the next request.
 
 [156.1]: {{javadoc_uri}}/GeckoSession.html#saveAsPdf()
 [156.2]: {{javadoc_uri}}/PageExtractionController.ContentParams.html#useSimpleText
@@ -28,6 +30,7 @@ exclude: true
 [156.4]: {{javadoc_uri}}/PageExtractionController.ContentParams.html#ContentParams(boolean,boolean)
 [156.5]: {{javadoc_uri}}/PageExtractionController.PageMetadata.html#isGated
 [156.6]: {{javadoc_uri}}/PageExtractionController.PageMetadata.html#PageMetadata(java.lang.String[],int,java.lang.String,boolean,boolean)
+[156.7]: {{javadoc_uri}}/IPProtectionController.AuthProvider.html#onTokenRejected(java.lang.String)
 
 ## v155
 - Added [WebRequestError.ERROR_LOCAL_NETWORK_ACCESS_DENIED] to indicate that a load failed because the user denied the local network access permission on Android 17+.
@@ -2073,4 +2076,4 @@ to allow adding gecko profiler markers.
 [65.24]: {{javadoc_uri}}/CrashReporter.html#sendCrashReport(android.content.Context,android.os.Bundle,java.lang.String)
 [65.25]: {{javadoc_uri}}/GeckoResult.html
 
-[api-version]: 90215a592b27dd13c83e94187e882cecedef6d30
+[api-version]: 50a498d1689c51f03df0c163186dd0107b8b0fc5
