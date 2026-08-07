@@ -90,7 +90,7 @@ class IPProtectionFeature(
                 .collectLatest { (eligibilityStatus, serviceStatus, accountStatus) ->
                     when (eligibilityStatus) {
                         EligibilityStatus.Eligible -> {
-                            if (serviceStatus == ServiceState.Uninitialized) {
+                            if (handler == null) {
                                 logger.info("Registering and initializing with IPProtectionController.")
                                 registerAndInit()
                             }
@@ -233,7 +233,10 @@ class IPProtectionFeature(
 
     private suspend fun uninit() =
         withContext(mainDispatcher) {
+            // Uninit de-registers the engine's listeners, so this delegate is deaf from here on.
             handler?.uninit()
+            handler = null
+            engine.unregisterIPProtectionDelegate()
         }
 
     private suspend fun observeToggle() =

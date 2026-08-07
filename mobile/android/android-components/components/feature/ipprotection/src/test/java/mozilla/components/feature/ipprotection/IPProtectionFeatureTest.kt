@@ -9,6 +9,8 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import mozilla.components.ExperimentalAndroidComponentsApi
 import mozilla.components.concept.engine.Engine
+import mozilla.components.concept.engine.ipprotection.IPProtectionHandler
+import mozilla.components.concept.engine.ipprotection.ServiceState
 import mozilla.components.feature.ipprotection.store.IPProtectionAction
 import mozilla.components.feature.ipprotection.store.IPProtectionStore
 import mozilla.components.feature.ipprotection.store.InternalAction
@@ -21,6 +23,8 @@ import mozilla.components.support.test.mock
 import mozilla.components.support.test.whenever
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.mockito.Mockito.times
+import org.mockito.Mockito.verify
 
 @OptIn(ExperimentalAndroidComponentsApi::class)
 class IPProtectionFeatureTest {
@@ -96,6 +100,51 @@ class IPProtectionFeatureTest {
 
             middleware.assertFirstAction(IPProtectionAction.ToggleFailed::class)
             middleware.assertNotDispatched(IPProtectionAction.LocationSwitchFailed::class)
+        }
+
+    @Test
+    fun `WHEN eligibility and service state change THEN registration follows eligibility alone`() =
+        runTest(testDispatcher) {
+            val engine: Engine = mock {
+                whenever(registerIPProtectionDelegate(any())).thenReturn(FakeIPProtectionHandler())
+            }
+            val (store, _) = buildStore()
+
+            IPProtectionFeature(
+                    store = store,
+                    engine = engine,
+                    accountManager = mock<FxaAccountManager>(),
+                    mainDispatcher = testDispatcher,
+                )
+                .initialize()
+
+            fun report(action: IPProtectionAction) {
+                store.dispatch(action)
+                testScheduler.advanceUntilIdle()
+            }
+
+            fun reportEligibility(eligibility: EligibilityStatus) =
+                report(IPProtectionAction.EligibilityChanged(eligibility))
+
+            fun reportServiceState(serviceState: ServiceState) =
+                report(
+                    IPProtectionAction.EngineStateChanged(IPProtectionHandler.StateInfo(serviceState = serviceState))
+                )
+
+            reportEligibility(EligibilityStatus.Eligible)
+            reportServiceState(ServiceState.Ready)
+
+            // Falling back off GPI uninitializes the service and immediately initializes it again.
+            // Re-registering on the way through would swap in a delegate that missed the state.
+            reportServiceState(ServiceState.Uninitialized)
+            reportServiceState(ServiceState.Ready)
+            verify(engine, times(1)).registerIPProtectionDelegate(any())
+
+            // Going ineligible uninits, which leaves the delegate deaf, so becoming eligible again
+            // has to register a fresh one.
+            reportEligibility(EligibilityStatus.Ineligible)
+            reportEligibility(EligibilityStatus.Eligible)
+            verify(engine, times(2)).registerIPProtectionDelegate(any())
         }
 
     private fun TestScope.startFeature(store: IPProtectionStore, failing: Boolean = false): FakeIPProtectionHandler {
