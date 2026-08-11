@@ -952,6 +952,10 @@ export class IPProtectionPanel {
       "IPProtectionService:StateChanged",
       this.handleEvent
     );
+    lazy.IPProtectionService.addEventListener(
+      "IPProtectionService:AuthStateChanged",
+      this.handleEvent
+    );
     lazy.IPPProxyManager.addEventListener(
       "IPPProxyManager:StateChanged",
       this.handleEvent
@@ -962,10 +966,6 @@ export class IPProtectionPanel {
     );
     lazy.IPPUsageHelper.addEventListener(
       "IPPUsageHelper:StateChanged",
-      this.handleEvent
-    );
-    lazy.IPProtectionService.authProvider.addEventListener(
-      "IPPAuthProvider:StateChanged",
       this.handleEvent
     );
     lazy.IPPExceptionsManager.addEventListener(
@@ -979,10 +979,6 @@ export class IPProtectionPanel {
   }
 
   #removeProxyListeners() {
-    lazy.IPProtectionService.authProvider.removeEventListener(
-      "IPPAuthProvider:StateChanged",
-      this.handleEvent
-    );
     lazy.IPPProxyManager.removeEventListener(
       "IPPProxyManager:StateChanged",
       this.handleEvent
@@ -997,6 +993,10 @@ export class IPProtectionPanel {
     );
     lazy.IPProtectionService.removeEventListener(
       "IPProtectionService:StateChanged",
+      this.handleEvent
+    );
+    lazy.IPProtectionService.removeEventListener(
+      "IPProtectionService:AuthStateChanged",
       this.handleEvent
     );
     lazy.IPPExceptionsManager.removeEventListener(
@@ -1173,7 +1173,7 @@ export class IPProtectionPanel {
     } else if (
       event.type == "IPPProxyManager:StateChanged" ||
       event.type == "IPProtectionService:StateChanged" ||
-      event.type === "IPPAuthProvider:StateChanged"
+      event.type == "IPProtectionService:AuthStateChanged"
     ) {
       let errorType = "";
       if (lazy.IPPProxyManager.state === lazy.IPPProxyStates.ERROR) {

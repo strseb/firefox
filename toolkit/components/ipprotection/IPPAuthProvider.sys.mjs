@@ -33,6 +33,14 @@ export const AUTH_ERRORS = Object.freeze({
  * unauthenticated/inactive state.
  */
 export class IPPAuthProvider extends EventTarget {
+  init() {}
+  uninit() {}
+  initOnStartupCompleted() {}
+
+  get helpers() {
+    return [this];
+  }
+
   /** Returns whether the user is authenticated and ready to use the proxy. */
   get isReady() {
     return false;

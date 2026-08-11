@@ -18,8 +18,6 @@ ChromeUtils.defineESModuleGetters(lazy, {
   // GPI talks to the same Guardian service, so it shares its status semantics.
   GuardianClient:
     "moz-src:///toolkit/components/ipprotection/fxa/GuardianClient.sys.mjs",
-  IPProtectionActivator:
-    "moz-src:///toolkit/components/ipprotection/IPProtectionActivator.sys.mjs",
   IPProtectionService:
     "moz-src:///toolkit/components/ipprotection/IPProtectionService.sys.mjs",
   clearTimeout: "resource://gre/modules/Timer.sys.mjs",
@@ -104,7 +102,7 @@ class IPPGpiAuthProviderSingleton extends IPPAuthProvider {
   }
 
   _onGpiWarmUpFailed() {
-    lazy.IPProtectionActivator.reinitWithFallback();
+    this.dispatchEvent(new CustomEvent("GPI:WarmUpFailed"));
   }
 
   _registerGpiListener(listener) {

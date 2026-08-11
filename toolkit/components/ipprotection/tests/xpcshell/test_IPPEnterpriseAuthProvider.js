@@ -86,9 +86,13 @@ add_task(async function test_initOnStartupCompleted_notifies_listeners() {
   const provider = new IPPEnterpriseAuthProviderSingleton();
 
   let eventFired = false;
-  provider.addEventListener("IPPAuthProvider:StateChanged", () => {
-    eventFired = true;
-  });
+  provider.addEventListener(
+    "IPPAuthProvider:StateChanged",
+    () => {
+      eventFired = true;
+    },
+    { once: true }
+  );
 
   await provider.initOnStartupCompleted();
 

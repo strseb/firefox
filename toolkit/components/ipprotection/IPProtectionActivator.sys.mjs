@@ -41,8 +41,6 @@ const coreHelpers = [
 
 let extraHelpers = [];
 let authProvider = null;
-let fallbackProvider = null;
-let onFallbackCallback = null;
 
 export const IPProtectionActivator = {
   addHelpers(helpers) {
@@ -61,24 +59,8 @@ export const IPProtectionActivator = {
   },
   setAuthProvider(provider) {
     authProvider = provider;
-    IPProtectionService.setAuthProvider(provider);
-  },
-  setFallbackAuthProvider(provider, onFallback = null) {
-    fallbackProvider = provider;
-    onFallbackCallback = onFallback;
-  },
-  async reinitWithFallback() {
-    if (!fallbackProvider) {
-      return;
-    }
-    const provider = fallbackProvider;
-    const cb = onFallbackCallback;
-    fallbackProvider = null;
-    onFallbackCallback = null;
-    this.uninit();
-    this.setAuthProvider(provider);
-    cb?.();
-    await this.init();
+    this.setupHelpers();
+    return IPProtectionService.setAuthProvider(provider);
   },
   init() {
     this.setupHelpers();
@@ -86,8 +68,6 @@ export const IPProtectionActivator = {
   },
   uninit() {
     authProvider = null;
-    fallbackProvider = null;
-    onFallbackCallback = null;
     return IPProtectionService.uninit();
   },
 };

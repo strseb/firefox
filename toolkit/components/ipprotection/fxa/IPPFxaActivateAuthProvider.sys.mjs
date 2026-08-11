@@ -164,12 +164,7 @@ class IPPFxaActivateAuthProviderSingleton extends IPPAuthProvider {
     if (entitlement) {
       this._setEntitlement(entitlement);
       lazy.IPProtectionService.updateState();
-      this.dispatchEvent(
-        new CustomEvent("IPPAuthProvider:StateChanged", {
-          bubbles: true,
-          composed: true,
-        })
-      );
+      this.dispatchEvent(new CustomEvent("IPPAuthProvider:StateChanged"));
     }
   }
 

@@ -78,8 +78,8 @@ class IPPUsageHelperSingleton extends EventTarget {
       "IPProtectionService:StateChanged",
       this.handleEvent
     );
-    lazy.IPProtectionService.authProvider.addEventListener(
-      "IPPAuthProvider:StateChanged",
+    lazy.IPProtectionService.addEventListener(
+      "IPProtectionService:AuthStateChanged",
       this.handleEvent
     );
   }
@@ -97,15 +97,15 @@ class IPPUsageHelperSingleton extends EventTarget {
       "IPProtectionService:StateChanged",
       this.handleEvent
     );
-    lazy.IPProtectionService.authProvider.removeEventListener(
-      "IPPAuthProvider:StateChanged",
+    lazy.IPProtectionService.removeEventListener(
+      "IPProtectionService:AuthStateChanged",
       this.handleEvent
     );
     this.#setState(UsageStates.NONE);
   }
 
   #handleEvent(event) {
-    if (event.type === "IPPAuthProvider:StateChanged") {
+    if (event.type === "IPProtectionService:AuthStateChanged") {
       this.#checkEntitlement();
       return;
     }

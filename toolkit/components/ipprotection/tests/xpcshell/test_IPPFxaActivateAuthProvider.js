@@ -252,8 +252,8 @@ add_task(
       });
 
     let hasUpgradedEventPromise = waitForEvent(
-      IPProtectionService.authProvider,
-      "IPPAuthProvider:StateChanged",
+      IPProtectionService,
+      "IPProtectionService:AuthStateChanged",
       () => IPProtectionService.authProvider.hasUpgraded
     );
 

@@ -30,7 +30,8 @@ const { debug, warn } = GeckoViewUtils.initLogging("GeckoViewIPProtection");
 
 const AUTH_PROVIDER_PREF = "toolkit.ipProtection.android.authProvider";
 
-let initialized = false;
+// Non-null exactly while initialized; aborting it unregisters every listener.
+let initAbortController = null;
 
 export const GeckoViewIPProtection = {
   // Events dispatched by components in toolkit/components/ipprotection.
@@ -77,24 +78,18 @@ export const GeckoViewIPProtection = {
 
     switch (aEvent) {
       case "GeckoView:IPProtection:Init": {
-        if (!initialized) {
-          initialized = true;
-          lazy.IPPProxyManager.addEventListener(
-            "IPPProxyManager:StateChanged",
-            GeckoViewIPProtection
-          );
-          lazy.IPPProxyManager.addEventListener(
-            "IPPProxyManager:UsageChanged",
-            GeckoViewIPProtection
-          );
-          lazy.IPProtectionService.addEventListener(
-            "IPProtectionService:StateChanged",
-            GeckoViewIPProtection
-          );
-          lazy.IPProtectionServerlist.addEventListener(
-            "IPProtectionServerlist:ListChanged",
-            GeckoViewIPProtection
-          );
+        if (!initAbortController) {
+          initAbortController = new AbortController();
+          [
+            [lazy.IPPProxyManager, "IPPProxyManager:StateChanged"],
+            [lazy.IPPProxyManager, "IPPProxyManager:UsageChanged"],
+            [lazy.IPProtectionService, "IPProtectionService:StateChanged"],
+            [lazy.IPProtectionServerlist, "IPProtectionServerlist:ListChanged"],
+          ].forEach(([target, eventName]) => {
+            target.addEventListener(eventName, GeckoViewIPProtection, {
+              signal: initAbortController.signal,
+            });
+          });
           let providerName = Services.prefs.getCharPref(AUTH_PROVIDER_PREF, "");
           if (!providerName) {
             providerName = aData?.isSignedIn ? "fxa" : "gpi";
@@ -110,9 +105,15 @@ export const GeckoViewIPProtection = {
             );
           } else {
             lazy.IPProtectionActivator.setAuthProvider(lazy.IPPGpiAuthProvider);
-            lazy.IPProtectionActivator.setFallbackAuthProvider(
-              lazy.IPPAndroidAuthProvider,
-              () => Services.prefs.setCharPref(AUTH_PROVIDER_PREF, "fxa")
+            lazy.IPPGpiAuthProvider.addEventListener(
+              "GPI:WarmUpFailed",
+              () => {
+                Services.prefs.setCharPref(AUTH_PROVIDER_PREF, "fxa");
+                lazy.IPProtectionActivator.setAuthProvider(
+                  lazy.IPPAndroidAuthProvider
+                );
+              },
+              { once: true, signal: initAbortController.signal }
             );
           }
           lazy.IPProtectionActivator.init();
@@ -121,24 +122,9 @@ export const GeckoViewIPProtection = {
         break;
       }
       case "GeckoView:IPProtection:Uninit": {
-        if (initialized) {
-          initialized = false;
-          lazy.IPPProxyManager.removeEventListener(
-            "IPPProxyManager:StateChanged",
-            GeckoViewIPProtection
-          );
-          lazy.IPPProxyManager.removeEventListener(
-            "IPPProxyManager:UsageChanged",
-            GeckoViewIPProtection
-          );
-          lazy.IPProtectionService.removeEventListener(
-            "IPProtectionService:StateChanged",
-            GeckoViewIPProtection
-          );
-          lazy.IPProtectionServerlist.removeEventListener(
-            "IPProtectionServerlist:ListChanged",
-            GeckoViewIPProtection
-          );
+        if (initAbortController) {
+          initAbortController.abort();
+          initAbortController = null;
           lazy.IPProtectionActivator.uninit();
           lazy.IPProtectionActivator.removeHelpers();
 

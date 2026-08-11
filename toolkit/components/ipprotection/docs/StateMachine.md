@@ -29,6 +29,9 @@ The service transitions across the following states:
 
 - `IPProtectionService:StateChanged` is dispatched on state changes with
   `detail.state` and `detail.prevState`.
+- `IPProtectionService:AuthStateChanged` is republished from the current auth
+  provider when its data changed without moving the state, such as an
+  entitlement picked up after an upgrade.
 - Helpers can call `IPProtectionService.updateState()` to recompute the state immediately; update any helper-owned data first because the call is synchronous.
 - Public actions: `start(userAction)`, `stop(userAction)`.
 

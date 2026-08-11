@@ -145,7 +145,7 @@ add_task(async function test_bandwidth_enabled_pref_tracks_usage() {
 
 /**
  * Tests that IPPUsageHelper syncs the bandwidth.enabled pref from the
- * entitlement's limitedBandwidth field on IPPAuthProvider:StateChanged.
+ * entitlement's limitedBandwidth field on IPProtectionService:AuthStateChanged.
  */
 add_task(async function test_bandwidth_enabled_pref_tracks_entitlement() {
   const sandbox = sinon.createSandbox();
@@ -156,11 +156,8 @@ add_task(async function test_bandwidth_enabled_pref_tracks_entitlement() {
 
   Services.prefs.setBoolPref(BANDWIDTH_ENABLED_PREF, true);
 
-  authProvider.dispatchEvent(
-    new CustomEvent("IPPAuthProvider:StateChanged", {
-      bubbles: true,
-      composed: true,
-    })
+  IPProtectionService.dispatchEvent(
+    new CustomEvent("IPProtectionService:AuthStateChanged")
   );
   await TestUtils.waitForTick();
 
@@ -176,11 +173,8 @@ add_task(async function test_bandwidth_enabled_pref_tracks_entitlement() {
   );
 
   limitedBandwidth = true;
-  authProvider.dispatchEvent(
-    new CustomEvent("IPPAuthProvider:StateChanged", {
-      bubbles: true,
-      composed: true,
-    })
+  IPProtectionService.dispatchEvent(
+    new CustomEvent("IPProtectionService:AuthStateChanged")
   );
   await TestUtils.waitForTick();
 

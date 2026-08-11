@@ -325,8 +325,10 @@ Recommended steps:
 2. Create a helper class with the methods `init()`, `initOnStartupCompleted()`
    and `uninit()` as appropriate for lifecycle needs.
 
-3. If your helper reacts to state changes, listen to the
-   `IPProtectionService:StateChanged` event.
+3. If your helper reacts to state changes, listen to
+   `IPProtectionService:StateChanged`, or `IPProtectionService:AuthStateChanged`
+   for auth data such as the entitlement. Listen on the service, never on the
+   auth provider: it can be replaced at runtime.
 
 4. Register your helper:
 

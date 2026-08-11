@@ -151,12 +151,7 @@ class IPPEnterpriseAuthProviderSingleton extends IPPAuthProvider {
 
   // eslint-disable-next-line require-await
   async enroll() {
-    this.dispatchEvent(
-      new CustomEvent("IPPAuthProvider:StateChanged", {
-        bubbles: true,
-        composed: true,
-      })
-    );
+    this.dispatchEvent(new CustomEvent("IPPAuthProvider:StateChanged"));
     return { isEnrolledAndEntitled: true };
   }
 
@@ -168,12 +163,7 @@ class IPPEnterpriseAuthProviderSingleton extends IPPAuthProvider {
 
   // eslint-disable-next-line require-await
   async initOnStartupCompleted() {
-    this.dispatchEvent(
-      new CustomEvent("IPPAuthProvider:StateChanged", {
-        bubbles: true,
-        composed: true,
-      })
-    );
+    this.dispatchEvent(new CustomEvent("IPPAuthProvider:StateChanged"));
     lazy.IPProtectionService.updateState();
   }
 

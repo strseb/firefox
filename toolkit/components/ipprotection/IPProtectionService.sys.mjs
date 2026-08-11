@@ -43,6 +43,8 @@ export const IPProtectionStates = Object.freeze({
  * @fires IPProtectionServiceSingleton#"IPProtectionService:StateChanged"
  *  When the proxy state machine changes state. Check the `state` attribute to
  *  know the current state.
+ * @fires IPProtectionServiceSingleton#"IPProtectionService:AuthStateChanged"
+ *  When the auth provider data changed.
  */
 class IPProtectionServiceSingleton extends EventTarget {
   #state = IPProtectionStates.UNINITIALIZED;
@@ -75,6 +77,31 @@ class IPProtectionServiceSingleton extends EventTarget {
     this.#helpers = helpers;
   }
 
+  #forwardAuthState = () => {
+    this.dispatchEvent(new CustomEvent("IPProtectionService:AuthStateChanged"));
+  };
+
+  /**
+   * Makes the provider current and moves the auth state subscription onto it,
+   * so consumers can listen to the service instead of the swappable provider.
+   *
+   * @param {IPPAuthProvider} authProvider
+   * @returns {IPPAuthProvider} The provider that was replaced.
+   */
+  #installAuthProvider(authProvider) {
+    const previous = this.#authProvider;
+    previous?.removeEventListener(
+      "IPPAuthProvider:StateChanged",
+      this.#forwardAuthState
+    );
+    this.#authProvider = authProvider;
+    authProvider.addEventListener(
+      "IPPAuthProvider:StateChanged",
+      this.#forwardAuthState
+    );
+    return previous;
+  }
+
   get authProvider() {
     return this.#authProvider;
   }
@@ -82,10 +109,38 @@ class IPProtectionServiceSingleton extends EventTarget {
   /**
    * Sets the authentication provider.
    *
-   * @param {object} authProvider
+   * @param {IPPAuthProvider} authProvider
+   * @returns {Promise<void>} Resolves once the new provider's startup hooks
+   *  have settled; the swap itself is synchronous.
    */
   setAuthProvider(authProvider) {
-    this.#authProvider = authProvider;
+    if (this.#state == IPProtectionStates.UNINITIALIZED) {
+      this.#installAuthProvider(authProvider);
+      return Promise.resolve();
+    }
+    // We're already running and need to replace the auth provider. Installing
+    // it first keeps a throwing helper from leaving the old one as current.
+    const previous = this.#installAuthProvider(authProvider);
+    try {
+      previous.helpers.forEach(h => h.uninit());
+      authProvider.helpers.forEach(h => h.init());
+    } finally {
+      this.#updateState();
+    }
+    if (!lazy.IPPStartupCache.isStartupCompleted) {
+      return Promise.resolve();
+    }
+    return Promise.allSettled(
+      authProvider.helpers.map(h => h.initOnStartupCompleted?.())
+    ).then(() => {
+      // A later swap or an uninit may have superseded this one.
+      if (
+        this.#authProvider === authProvider &&
+        this.#state !== IPProtectionStates.UNINITIALIZED
+      ) {
+        this.#updateState();
+      }
+    });
   }
 
   /**

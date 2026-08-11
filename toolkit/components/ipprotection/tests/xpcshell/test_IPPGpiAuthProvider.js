@@ -171,6 +171,22 @@ add_task(async function test_isReady_false_and_clears_expired_jwt() {
   sandbox.restore();
 });
 
+add_task(async function test_warmup_failure_dispatches_event() {
+  const sandbox = sinon.createSandbox();
+  const provider = makeProvider(sandbox);
+  provider._onGpiWarmUpFailed.restore();
+
+  const failedEventPromise = waitForEvent(provider, "GPI:WarmUpFailed");
+  provider._onGpiWarmUpFailed();
+
+  Assert.equal(
+    (await failedEventPromise).type,
+    "GPI:WarmUpFailed",
+    "Warm-up failure should be dispatched so embedders can fall back"
+  );
+  sandbox.restore();
+});
+
 add_task(async function test_isReady_false_after_uninit() {
   const sandbox = sinon.createSandbox();
   const provider = makeProvider(sandbox);
