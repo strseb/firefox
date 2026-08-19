@@ -39,6 +39,7 @@ ChromeUtils.defineLazyGetter(lazy, "jexl", () => {
     preferenceExists: prefKey =>
       Services.prefs.getPrefType(prefKey) != Ci.nsIPrefBranch.PREF_INVALID,
     preferenceIsLocked: prefKey => Services.prefs.prefIsLocked(prefKey),
+    jsonParse: (value) => JSON.parse(value),
     keys,
     values,
     length,
