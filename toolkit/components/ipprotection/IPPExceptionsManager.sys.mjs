@@ -49,7 +49,9 @@ export const IPPPrincipalRules = Object.freeze({
 /**
  * Manages site exceptions for IP Protection.
  * It communicates with Services.perms to update the ipp-vpn permission type.
- * Site exclusions are marked as permissions with DENY capabilities.
+ * Site exclusions are marked as permissions with DENY capabilities, site
+ * inclusions with ALLOW capabilities. A site has at most one of the two: adding
+ * one replaces the other.
  *
  * While permissions related UI (eg. panels and dialogs) already handle changes to ipp-vpn,
  * the intention of this class is to abstract methods for updating ipp-vpn as needed
@@ -158,13 +160,20 @@ class ExceptionsManager extends EventTarget {
       return;
     }
 
-    const isExclusion =
-      permission.capability === Ci.nsIPermissionManager.DENY_ACTION;
-    const added = data === "added" && isExclusion;
-    const removed = data === "deleted" && isExclusion;
+    if (data !== "added" && data !== "deleted" && data !== "changed") {
+      return;
+    }
 
-    if (added || removed) {
-      if (added) {
+    // "changed" carries the new permission, so replacing an exclusion with an
+    // inclusion (or the reverse) is reported under the new capability.
+    const { capability } = permission;
+
+    if (capability === Ci.nsIPermissionManager.ALLOW_ACTION) {
+      this.dispatchEvent(
+        new CustomEvent("IPPExceptionsManager:InclusionChanged")
+      );
+    } else if (capability === Ci.nsIPermissionManager.DENY_ACTION) {
+      if (data === "added") {
         Glean.ipprotection.exclusionAdded.add(1);
       }
 
@@ -244,19 +253,39 @@ class ExceptionsManager extends EventTarget {
   }
 
   /**
+   * @param {number} capability
+   *  An nsIPermissionManager action.
+   * @returns {number}
+   *  The count of ipp-vpn permissions with that capability.
+   */
+  #countByCapability(capability) {
+    let count = 0;
+    for (let perm of Services.perms.getAllByTypes([PERM_NAME])) {
+      if (perm.capability === capability) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /**
    * Gets the total number of site exclusions added to ipp-vpn.
    *
    * @returns {number}
    *  The count of site exclusions in ipp-vpn.
    */
   getExclusionCount() {
-    let count = 0;
-    for (let perm of Services.perms.getAllByTypes([PERM_NAME])) {
-      if (perm.capability === Ci.nsIPermissionManager.DENY_ACTION) {
-        count++;
-      }
-    }
-    return count;
+    return this.#countByCapability(Ci.nsIPermissionManager.DENY_ACTION);
+  }
+
+  /**
+   * Gets the total number of site inclusions added to ipp-vpn.
+   *
+   * @returns {number}
+   *  The count of site inclusions in ipp-vpn.
+   */
+  getInclusionCount() {
+    return this.#countByCapability(Ci.nsIPermissionManager.ALLOW_ACTION);
   }
 
   /**
@@ -289,6 +318,53 @@ class ExceptionsManager extends EventTarget {
       this.addExclusion(principal);
     } else {
       this.removeExclusion(principal);
+    }
+  }
+
+  /**
+   * Returns true if the principal exists in ipp-vpn and is registered as a
+   * permission with an ALLOW_ACTION capability (site inclusions).
+   *
+   * @param {nsIPrincipal} principal
+   *  The principal that we want to check is saved in ipp-vpn
+   *  as a site inclusion.
+   * @returns {boolean}
+   *  True if the principal exists as a site inclusion.
+   */
+  hasInclusion(principal) {
+    let permission = this.getExceptionPermissionObject(principal);
+    return permission?.capability === Ci.nsIPermissionManager.ALLOW_ACTION;
+  }
+
+  /**
+   * Sets the given principal as an inclusion or non inclusion.
+   *
+   * @param {nsIPrincipal} principal
+   *  The principal we want to update for the inclusion state.
+   * @param {boolean} shouldInclude
+   *  True to set the principal as an inclusion. Otherwise false.
+   *
+   * @example
+   * // Assuming the principal represents a site https://www.example.com,
+   * // this line sets https://www.example.com as an inclusion
+   * // in ipp-vpn.
+   * IPPExceptionsManager.setInclusion(nsIPrincipal, true);
+   */
+  setInclusion(principal, shouldInclude) {
+    if (!principal || shouldInclude === this.hasInclusion(principal)) {
+      return;
+    }
+
+    if (shouldInclude) {
+      // addFromPrincipal replaces any existing ipp-vpn permission for this
+      // principal, so including a previously excluded site drops the exclusion.
+      Services.perms.addFromPrincipal(
+        principal,
+        PERM_NAME,
+        Ci.nsIPermissionManager.ALLOW_ACTION
+      );
+    } else {
+      Services.perms.removeFromPrincipal(principal, PERM_NAME);
     }
   }
 
@@ -352,6 +428,9 @@ class ExceptionsManager extends EventTarget {
         return IPPPrincipalRules.EXCLUDED;
       }
       if (uri && this.#inclusionSet.matches(uri)) {
+        return IPPPrincipalRules.INCLUDED;
+      }
+      if (this.hasInclusion(principal)) {
         return IPPPrincipalRules.INCLUDED;
       }
       if (this.hasExclusion(principal)) {

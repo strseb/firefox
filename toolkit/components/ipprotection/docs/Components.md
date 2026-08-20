@@ -144,8 +144,8 @@ IPProtectionActivator
 
 IPPExceptionsManager
 
-: Manages the exceptions logic (for example, domain exclusions) in coordination
-  with the panel and preferences.
+: Manages the exceptions logic (per-site exclusions and inclusions, stored as
+  `ipp-vpn` permissions) in coordination with the panel and preferences.
 
 ### Additional proxy/telemetry components
 

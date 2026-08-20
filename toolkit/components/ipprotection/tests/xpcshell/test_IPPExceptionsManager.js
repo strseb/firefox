@@ -4,6 +4,7 @@ https://creativecommons.org/publicdomain/zero/1.0/ */
 "use strict";
 
 const EXCLUSION_CHANGED_EVENT = "IPPExceptionsManager:ExclusionChanged";
+const INCLUSION_CHANGED_EVENT = "IPPExceptionsManager:InclusionChanged";
 const ONBOARDING_MESSAGE_MASK_PREF =
   "browser.ipProtection.onboardingMessageMask";
 const PERM_NAME = "ipp-vpn";
@@ -257,6 +258,189 @@ add_task(async function test_getPrincipalRule_user_exclusion() {
     IPPExceptionsManager.getPrincipalRule(principal),
     IPPPrincipalRules.DEFAULT,
     "principal -> DEFAULT after removing the exclusion"
+  );
+
+  IPPExceptionsManager.uninit();
+  Services.perms.removeByType(PERM_NAME);
+});
+
+/**
+ * setInclusion adds an ipp-vpn ALLOW permission, which makes the principal
+ * INCLUDED, and removes it again with shouldInclude=false.
+ */
+add_task(async function test_setInclusion_add_and_remove() {
+  Services.perms.removeByType(PERM_NAME);
+  IPPExceptionsManager.init();
+
+  const principal = makePrincipal("https://included.example.com");
+
+  let inclusionChanged = waitForEvent(
+    IPPExceptionsManager,
+    INCLUSION_CHANGED_EVENT
+  );
+  IPPExceptionsManager.setInclusion(principal, true);
+  await inclusionChanged;
+
+  Assert.ok(
+    IPPExceptionsManager.hasInclusion(principal),
+    "hasInclusion is true after setInclusion with shouldInclude=true"
+  );
+  Assert.ok(
+    !IPPExceptionsManager.hasExclusion(principal),
+    "an inclusion is not reported as an exclusion"
+  );
+  Assert.equal(
+    IPPExceptionsManager.getExceptionPermissionObject(principal)?.capability,
+    Ci.nsIPermissionManager.ALLOW_ACTION,
+    "the ipp-vpn permission has capability ALLOW"
+  );
+  Assert.equal(
+    IPPExceptionsManager.getPrincipalRule(principal),
+    IPPPrincipalRules.INCLUDED,
+    "principal with ipp-vpn ALLOW -> INCLUDED"
+  );
+  Assert.equal(
+    IPPExceptionsManager.getExclusionCount(),
+    0,
+    "inclusions are not counted as exclusions"
+  );
+
+  // Setting the same state again is a no-op.
+  IPPExceptionsManager.setInclusion(principal, true);
+  Assert.equal(
+    Services.perms.getAllByTypes([PERM_NAME]).length,
+    1,
+    "setting an existing inclusion does not add a second permission"
+  );
+
+  inclusionChanged = waitForEvent(
+    IPPExceptionsManager,
+    INCLUSION_CHANGED_EVENT
+  );
+  IPPExceptionsManager.setInclusion(principal, false);
+  await inclusionChanged;
+
+  Assert.ok(
+    !IPPExceptionsManager.hasInclusion(principal),
+    "hasInclusion is false after setInclusion with shouldInclude=false"
+  );
+  Assert.ok(
+    !IPPExceptionsManager.getExceptionPermissionObject(principal),
+    "the ipp-vpn permission is gone"
+  );
+  Assert.equal(
+    IPPExceptionsManager.getPrincipalRule(principal),
+    IPPPrincipalRules.DEFAULT,
+    "principal -> DEFAULT after removing the inclusion"
+  );
+
+  IPPExceptionsManager.uninit();
+  Services.perms.removeByType(PERM_NAME);
+});
+
+/**
+ * getInclusionCount counts ALLOW permissions only.
+ */
+add_task(async function test_getInclusionCount() {
+  Services.perms.removeByType(PERM_NAME);
+  IPPExceptionsManager.init();
+
+  const included = makePrincipal("https://counted.example.com");
+
+  Assert.equal(
+    IPPExceptionsManager.getInclusionCount(),
+    0,
+    "No inclusions to start with"
+  );
+
+  IPPExceptionsManager.addExclusion(makePrincipal("https://other.example.com"));
+  Assert.equal(
+    IPPExceptionsManager.getInclusionCount(),
+    0,
+    "An exclusion is not counted as an inclusion"
+  );
+
+  IPPExceptionsManager.setInclusion(included, true);
+  Assert.equal(
+    IPPExceptionsManager.getInclusionCount(),
+    1,
+    "The inclusion is counted"
+  );
+  Assert.equal(
+    IPPExceptionsManager.getExclusionCount(),
+    1,
+    "The exclusion is still counted separately"
+  );
+
+  IPPExceptionsManager.setInclusion(included, false);
+  Assert.equal(
+    IPPExceptionsManager.getInclusionCount(),
+    0,
+    "Removing the inclusion drops the count"
+  );
+
+  IPPExceptionsManager.uninit();
+  Services.perms.removeByType(PERM_NAME);
+});
+
+/**
+ * A site has at most one ipp-vpn permission: including a previously excluded
+ * site replaces the exclusion, and excluding it again replaces the inclusion.
+ */
+add_task(async function test_setInclusion_overwrites_exclusion() {
+  Services.perms.removeByType(PERM_NAME);
+  IPPExceptionsManager.init();
+
+  const principal = makePrincipal("https://overwrite.example.com");
+
+  IPPExceptionsManager.addExclusion(principal);
+  Assert.equal(
+    IPPExceptionsManager.getPrincipalRule(principal),
+    IPPPrincipalRules.EXCLUDED,
+    "principal starts out EXCLUDED"
+  );
+
+  let inclusionChanged = waitForEvent(
+    IPPExceptionsManager,
+    INCLUSION_CHANGED_EVENT
+  );
+  IPPExceptionsManager.setInclusion(principal, true);
+  await inclusionChanged;
+
+  Assert.ok(
+    !IPPExceptionsManager.hasExclusion(principal),
+    "the exclusion is gone after including the site"
+  );
+  Assert.ok(
+    IPPExceptionsManager.hasInclusion(principal),
+    "the site is now an inclusion"
+  );
+  Assert.equal(
+    IPPExceptionsManager.getPrincipalRule(principal),
+    IPPPrincipalRules.INCLUDED,
+    "previously excluded principal -> INCLUDED"
+  );
+  Assert.equal(
+    Services.perms.getAllByTypes([PERM_NAME]).length,
+    1,
+    "the exclusion was replaced, not stacked"
+  );
+
+  const exclusionChanged = waitForEvent(
+    IPPExceptionsManager,
+    EXCLUSION_CHANGED_EVENT
+  );
+  IPPExceptionsManager.setExclusion(principal, true);
+  await exclusionChanged;
+
+  Assert.ok(
+    !IPPExceptionsManager.hasInclusion(principal),
+    "the inclusion is gone after excluding the site again"
+  );
+  Assert.equal(
+    IPPExceptionsManager.getPrincipalRule(principal),
+    IPPPrincipalRules.EXCLUDED,
+    "previously included principal -> EXCLUDED"
   );
 
   IPPExceptionsManager.uninit();
