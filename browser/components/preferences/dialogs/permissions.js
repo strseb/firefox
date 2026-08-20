@@ -52,7 +52,14 @@ const permissionExceptionsL10n = {
   },
   "ipp-vpn": {
     window: "ip-protection-exceptions-dialog-window",
-    description: "ip-protection-exclusions-desc",
+    description: "ip-protection-website-settings-desc",
+    statusColumn: "ip-protection-exceptions-rule-column",
+    capabilities: {
+      [Ci.nsIPermissionManager.DENY_ACTION]:
+        "ip-protection-exceptions-rule-off",
+      [Ci.nsIPermissionManager.ALLOW_ACTION]:
+        "ip-protection-exceptions-rule-on",
+    },
   },
   "persist-data-on-shutdown": {
     window: "permissions-exceptions-shutdown-clearing-window",
@@ -79,6 +86,7 @@ var gPermissionManager = {
   _removeAllButton: null,
   _forcedHTTP: null,
   _capabilityFilter: null,
+  _capabilityChoices: null,
 
   onLoad() {
     let params = window.arguments[0];
@@ -97,6 +105,8 @@ var gPermissionManager = {
    * @param {boolean} params.hideStatusColumn Hide the "Status" column in the dialog
    * @param {boolean} params.forcedHTTP Save inputs whose URI has a HTTPS scheme with a HTTP scheme (Used by HTTPS-Only)
    * @param {number} params.capabilityFilter Display permissions that have the specified capability only. See Ci.nsIPermissionManager.
+   * @param {number[]} params.capabilityChoices Capabilities the user can pick from, in display order.
+   *  Turns the status column into a per-row picker.
    */
   async init(params) {
     if (!this._isObserving) {
@@ -120,6 +130,7 @@ var gPermissionManager = {
     this._btnAdd = document.getElementById("btnAdd");
 
     this._capabilityFilter = params.capabilityFilter;
+    this._capabilityChoices = params.capabilityChoices;
 
     let permissionsText = document.getElementById("permissionsText");
 
@@ -127,6 +138,12 @@ var gPermissionManager = {
 
     document.l10n.setAttributes(permissionsText, l10n.description);
     document.l10n.setAttributes(document.documentElement, l10n.window);
+    if (l10n.statusColumn) {
+      document.l10n.setAttributes(
+        document.getElementById("statusCol"),
+        l10n.statusColumn
+      );
+    }
 
     let urlFieldVisible =
       params.blockVisible ||
@@ -247,8 +264,7 @@ var gPermissionManager = {
           );
           break;
         case "btnAdd":
-          // This button is for ipp-vpn, which only supports
-          // site exclusions at this time.
+          // New entries start out excluded; the row picker changes the rule.
           gPermissionManager.addPermission(Ci.nsIPermissionManager.DENY_ACTION);
       }
     });
@@ -296,10 +312,22 @@ var gPermissionManager = {
       "origin",
       perm.origin
     )[0];
-    document.l10n.setAttributes(
-      permissionlistitem.querySelector(".website-capability-value"),
-      this._getCapabilityL10nId(perm.capability)
+    let capability = permissionlistitem?.querySelector(
+      ".website-capability-value"
     );
+    // The status column can be hidden, in which case there is no cell to update.
+    if (!capability) {
+      return;
+    }
+    permissionlistitem.setAttribute("capability", perm.capability);
+    if (capability.localName == "menulist") {
+      capability.value = perm.capability;
+    } else {
+      document.l10n.setAttributes(
+        capability,
+        this._getCapabilityL10nId(perm.capability)
+      );
+    }
   },
 
   _isCapabilitySupported(capability) {
@@ -332,6 +360,47 @@ var gPermissionManager = {
       default:
         throw new Error(`Unknown capability: ${capability}`);
     }
+  },
+
+  /**
+   * Menuitems take their text from a `.label` attribute, so they need their own
+   * message family, separate from the `.value` based listitem ids.
+   *
+   * @param {number} capability
+   * @returns {string} Fluent id for a menuitem representing this capability.
+   */
+  _getCapabilityMenuitemL10nId(capability) {
+    let capabilities = permissionExceptionsL10n[this._type].capabilities;
+    if (capabilities?.[capability]) {
+      return capabilities[capability];
+    }
+
+    switch (capability) {
+      case Ci.nsIPermissionManager.ALLOW_ACTION:
+        return "permissions-capabilities-allow";
+      case Ci.nsIPermissionManager.DENY_ACTION:
+        return "permissions-capabilities-block";
+      default:
+        throw new Error(`Unknown capability: ${capability}`);
+    }
+  },
+
+  /**
+   * @param {number} selected
+   *  The capability the menulist should start on.
+   * @returns {Element} A menulist offering every capability in _capabilityChoices.
+   */
+  _createCapabilityMenulist(selected) {
+    let menulist = document.createXULElement("menulist");
+    for (let choice of this._capabilityChoices) {
+      let item = menulist.appendItem(undefined, choice);
+      document.l10n.setAttributes(
+        item,
+        this._getCapabilityMenuitemL10nId(choice)
+      );
+    }
+    menulist.value = selected;
+    return menulist;
   },
 
   _getHttpsOnlyCapabilityL10nId(capability) {
@@ -513,6 +582,7 @@ var gPermissionManager = {
     let disabledByPolicy = this._permissionDisabledByPolicy(permission);
     let richlistitem = document.createXULElement("richlistitem");
     richlistitem.setAttribute("origin", permission.origin);
+    richlistitem.setAttribute("capability", permission.capability);
     let row = document.createXULElement("hbox");
     row.setAttribute("style", "flex: 1");
 
@@ -534,13 +604,25 @@ var gPermissionManager = {
 
     if (!this._hideStatusColumn) {
       hbox = document.createXULElement("hbox");
-      let capability = document.createXULElement("label");
+      let capability;
+      if (this._capabilityChoices) {
+        capability = this._createCapabilityMenulist(permission.capability);
+        capability.setAttribute("style", "flex: 1; min-width: 0");
+        capability.addEventListener("select", () =>
+          this._addOrModifyPermission(
+            permission.principal,
+            Number(capability.value)
+          )
+        );
+      } else {
+        capability = document.createXULElement("label");
+        document.l10n.setAttributes(
+          capability,
+          this._getCapabilityL10nId(permission.capability)
+        );
+      }
       capability.toggleAttribute("disabled", disabledByPolicy);
       capability.setAttribute("class", "website-capability-value");
-      document.l10n.setAttributes(
-        capability,
-        this._getCapabilityL10nId(permission.capability)
-      );
       hbox.setAttribute("class", "website-name");
       hbox.setAttribute("style", "flex: 1; width: 0");
       hbox.appendChild(capability);
@@ -762,6 +844,13 @@ var gPermissionManager = {
         break;
 
       case "statusCol":
+        if (this._capabilityChoices) {
+          // Menulists carry no localized text to sort on, so use the capability.
+          sortFunc = (a, b) =>
+            Number(a.getAttribute("capability")) -
+            Number(b.getAttribute("capability"));
+          break;
+        }
         sortFunc = (a, b) => {
           // The capabilities values ("Allow" and "Block") are localized asynchronously.
           // Sort based on the guaranteed-present localization ID instead, note that the

@@ -8,6 +8,8 @@ support-files = [
 ]
 tags = "os_integration"
 
+["browser_capability_choices.js"]
+
 ["browser_capability_filter.js"]
 
 ["browser_ignore_invalid_capability.js"]

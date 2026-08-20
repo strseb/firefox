@@ -498,6 +498,51 @@ add_task(async function test_exclusions_count() {
   );
 });
 
+// Test that inclusions count toward the number of managed websites.
+add_task(async function test_inclusions_count() {
+  const PERM_NAME = "ipp-vpn";
+  await setupVpnPrefs({
+    feature: "beta",
+    siteExceptions: true,
+    entitlementCache: '{"some":"data"}',
+  });
+
+  await BrowserTestUtils.withNewTab(
+    { gBrowser, url: "about:preferences#privacy" },
+    async function (browser) {
+      let settingGroup = testSettingsGroupVisible(browser);
+      let exceptionAllListButton = settingGroup
+        ?.querySelector("#ipProtectionExceptions")
+        ?.querySelector("#ipProtectionExceptionAllListButton");
+
+      let sitesCountUpdatedPromise = BrowserTestUtils.waitForMutationCondition(
+        exceptionAllListButton,
+        { attributes: true, attributeFilter: ["data-l10n-args"] },
+        () => {
+          let args = exceptionAllListButton.getAttribute("data-l10n-args");
+          return args && JSON.parse(args)?.count === 1;
+        }
+      );
+
+      Services.perms.addFromPrincipal(
+        Services.scriptSecurityManager.createContentPrincipalFromOrigin(
+          "https://included.example.com"
+        ),
+        PERM_NAME,
+        Ci.nsIPermissionManager.ALLOW_ACTION
+      );
+
+      await sitesCountUpdatedPromise;
+
+      Assert.ok(true, "Should count an inclusion as a managed website");
+
+      // Clean up
+      Services.perms.removeByType(PERM_NAME);
+      Services.prefs.clearUserPref(ONBOARDING_MESSAGE_MASK_PREF);
+    }
+  );
+});
+
 // Test that autostart checkboxes exist and map to the correct preferences
 add_task(async function test_autostart_checkboxes() {
   await setupVpnPrefs({

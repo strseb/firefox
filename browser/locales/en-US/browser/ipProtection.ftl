@@ -313,7 +313,13 @@ ip-protection-vpn-upgrade-link-1 =
 
 ip-protection-exceptions-dialog-window =
   .title = Manage website settings
-ip-protection-exclusions-desc = Use VPN for all websites except ones on this list. Add a website here or by opening VPN.
+ip-protection-website-settings-desc = Choose which websites always use the VPN and which never do. Add a website here or by opening VPN.
+ip-protection-exceptions-rule-column =
+  .label = Rule
+ip-protection-exceptions-rule-off =
+  .label = Always off
+ip-protection-exceptions-rule-on =
+  .label = Always on
 
 ## IP Protection Bandwidth
 

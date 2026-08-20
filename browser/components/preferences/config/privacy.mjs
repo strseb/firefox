@@ -2161,10 +2161,12 @@ Preferences.addSetting({
   onUserClick() {
     let params = {
       addVisible: true,
-      hideStatusColumn: true,
       prefilledHost: "",
       permissionType: "ipp-vpn",
-      capabilityFilter: Ci.nsIPermissionManager.DENY_ACTION,
+      capabilityChoices: [
+        Ci.nsIPermissionManager.DENY_ACTION,
+        Ci.nsIPermissionManager.ALLOW_ACTION,
+      ],
     };
 
     gSubDialog.open(
@@ -2177,12 +2179,14 @@ Preferences.addSetting({
     let l10nId = "ip-protection-site-exceptions-all-sites-button";
 
     let savedExceptions = Services.perms.getAllByTypes(["ipp-vpn"]);
-    let numberOfExclusions = savedExceptions.filter(
-      perm => perm.capability === Ci.nsIPermissionManager.DENY_ACTION
+    let numberOfManagedSites = savedExceptions.filter(
+      perm =>
+        perm.capability === Ci.nsIPermissionManager.DENY_ACTION ||
+        perm.capability === Ci.nsIPermissionManager.ALLOW_ACTION
     ).length;
 
     let l10nArgs = {
-      count: numberOfExclusions,
+      count: numberOfManagedSites,
     };
 
     return {
