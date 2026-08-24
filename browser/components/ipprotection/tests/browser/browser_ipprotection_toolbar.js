@@ -489,3 +489,71 @@ add_task(async function toolbar_placement_reset() {
     "IP Protection widget is reset to the initial position after customize mode reset"
   );
 });
+
+/**
+ * In inclusion mode the button only shows as covering the page when an
+ * inclusion rule matches it.
+ */
+add_task(async function toolbar_icon_status_inclusion_mode() {
+  const { IPPProxyModes } = ChromeUtils.importESModule(
+    "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs"
+  );
+  const INCLUDED_SITE = "https://example.com/";
+  const OTHER_SITE = "https://example.org/";
+
+  let button = document.getElementById(IPProtectionWidget.WIDGET_ID);
+
+  IPPExceptionsManager.setInclusion(
+    Services.scriptSecurityManager.createContentPrincipalFromOrigin(
+      INCLUDED_SITE
+    ),
+    true
+  );
+
+  setupService({ isReady: true });
+  IPProtectionService.updateState();
+  await putServerInRemoteSettings();
+
+  await BrowserTestUtils.withNewTab(INCLUDED_SITE, async () => {
+    let vpnOnPromise = BrowserTestUtils.waitForEvent(
+      lazy.IPPProxyManager,
+      "IPPProxyManager:StateChanged",
+      false,
+      () => lazy.IPPProxyManager.state === IPPProxyStates.ACTIVE
+    );
+    await lazy.IPPProxyManager.start({ mode: IPPProxyModes.INCLUSION });
+    await vpnOnPromise;
+
+    Assert.ok(
+      button.classList.contains("ipprotection-included"),
+      "Toolbar icon should show the included status on an included site"
+    );
+    Assert.ok(
+      !button.classList.contains("ipprotection-on"),
+      "The included status should be distinct from the connected one"
+    );
+
+    let includedLayer = button.querySelector(
+      ".ipprotection-icon-layer[data-state='included']"
+    );
+    Assert.equal(
+      getComputedStyle(includedLayer).opacity,
+      "1",
+      "Included layer should be revealed"
+    );
+  });
+
+  await BrowserTestUtils.withNewTab(OTHER_SITE, async () => {
+    Assert.ok(
+      !button.classList.contains("ipprotection-included"),
+      "Toolbar icon should not show the included status on other sites"
+    );
+    Assert.ok(
+      !button.classList.contains("ipprotection-on"),
+      "Toolbar icon should not show as connected on a site the proxy skips"
+    );
+  });
+
+  await lazy.IPPProxyManager.stop(false);
+  Services.perms.removeByType("ipp-vpn");
+});

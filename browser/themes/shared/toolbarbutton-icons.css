@@ -337,7 +337,7 @@
       display: none;
     }
 
-    &.ipprotection-on {
+    &:is(.ipprotection-on, .ipprotection-included) {
       list-style-image: url("chrome://browser/content/ipprotection/assets/states/ipprotection-on.svg");
       fill: var(--icon-color-success);
     }
@@ -380,7 +380,9 @@
       opacity: 0;
     }
 
-    .ipprotection-icon-layer[data-state="on"] {
+    /* The included state has no artwork of its own yet and reuses the
+       connected one. */
+    .ipprotection-icon-layer:is([data-state="on"], [data-state="included"]) {
       list-style-image: url("chrome://browser/content/ipprotection/assets/toolbaricons/ipprotection-on.svg");
       stroke: var(--icon-color-success);
     }
@@ -406,12 +408,14 @@
     &.ipprotection-network-error .ipprotection-icon-layer[data-state="network-error"],
     &.ipprotection-error .ipprotection-icon-layer[data-state="error"],
     &.ipprotection-excluded .ipprotection-icon-layer[data-state="excluded"],
+    &.ipprotection-included .ipprotection-icon-layer[data-state="included"],
     &.ipprotection-paused .ipprotection-icon-layer[data-state="paused"] {
       opacity: 1;
     }
 
     /* Icon Inactive State */
-    &:is(.ipprotection-on, .ipprotection-network-error, .ipprotection-error, .ipprotection-excluded, .ipprotection-paused) .toolbarbutton-icon {
+    &:is(.ipprotection-on, .ipprotection-network-error, .ipprotection-error, .ipprotection-excluded, .ipprotection-included, .ipprotection-paused)
+      .toolbarbutton-icon {
       opacity: 0;
     }
   }

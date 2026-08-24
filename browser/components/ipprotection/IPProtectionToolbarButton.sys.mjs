@@ -17,6 +17,8 @@ ChromeUtils.defineESModuleGetters(lazy, {
     "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs",
   IPProtectionService:
     "moz-src:///toolkit/components/ipprotection/IPProtectionService.sys.mjs",
+  IPPProxyModes:
+    "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs",
   IPPProxyStates:
     "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs",
   ERRORS: "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs",
@@ -70,6 +72,7 @@ export class IPProtectionToolbarButton {
     "network-error",
     "error",
     "excluded",
+    "included",
     "paused",
   ];
 
@@ -139,6 +142,10 @@ export class IPProtectionToolbarButton {
       "IPPExceptionsManager:ExclusionChanged",
       this.handleEvent
     );
+    lazy.IPPExceptionsManager.addEventListener(
+      "IPPExceptionsManager:InclusionChanged",
+      this.handleEvent
+    );
 
     if (this.gBrowser?.tabContainer) {
       this.gBrowser.tabContainer.addEventListener("TabSelect", this);
@@ -203,13 +210,15 @@ export class IPProtectionToolbarButton {
       event.type !== "IPProtectionService:StateChanged" &&
       event.type !== "IPPProxyManager:StateChanged" &&
       event.type !== "IPPExceptionsManager:ExclusionChanged" &&
+      event.type !== "IPPExceptionsManager:InclusionChanged" &&
       event.type !== "TabSelect"
     ) {
       return;
     }
 
-    let exclusionChanged =
-      event.type === "IPPExceptionsManager:ExclusionChanged";
+    let siteRuleChanged =
+      event.type === "IPPExceptionsManager:ExclusionChanged" ||
+      event.type === "IPPExceptionsManager:InclusionChanged";
 
     if (
       event.type === "IPPProxyManager:StateChanged" &&
@@ -218,7 +227,7 @@ export class IPProtectionToolbarButton {
       this.#visitedExcludedSites.clear();
     }
 
-    this.updateState(null, { showConfirmationHint: !exclusionChanged });
+    this.updateState(null, { showConfirmationHint: !siteRuleChanged });
   }
 
   /**
@@ -261,16 +270,28 @@ export class IPProtectionToolbarButton {
     }
 
     let principal = getSitePrincipal(this.gBrowser);
+    let rule = principal
+      ? lazy.IPPExceptionsManager.getPrincipalRule(principal)
+      : null;
+
     // Only surface an exclusion for pages the user can manage (normal content
     // pages), matching the panel: about:/chrome:/system pages are never shown
     // excluded.
     let isExcluded =
       !!principal &&
       lazy.IPPExceptionsManager.canManage(principal) &&
-      lazy.IPPExceptionsManager.getPrincipalRule(principal) ===
-        lazy.IPPPrincipalRules.EXCLUDED;
+      rule === lazy.IPPPrincipalRules.EXCLUDED;
 
-    let isActive = lazy.IPPProxyManager.state === lazy.IPPProxyStates.ACTIVE;
+    let isConnected = lazy.IPPProxyManager.state === lazy.IPPProxyStates.ACTIVE;
+    // Only a full connection covers every page. In inclusion mode the button
+    // reflects this page rather than the connection.
+    let isIncluded =
+      isConnected &&
+      lazy.IPPProxyManager.mode === lazy.IPPProxyModes.INCLUSION &&
+      rule === lazy.IPPPrincipalRules.INCLUDED;
+
+    let isActive =
+      isConnected && lazy.IPPProxyManager.mode === lazy.IPPProxyModes.FULL;
     let isPaused = lazy.IPPProxyManager.state === lazy.IPPProxyStates.PAUSED;
 
     // Show error icon when proxy manager is in ERROR state.
@@ -304,6 +325,7 @@ export class IPProtectionToolbarButton {
       isError,
       isNetworkError,
       isExcluded,
+      isIncluded,
       isPaused,
     });
 
@@ -409,6 +431,7 @@ export class IPProtectionToolbarButton {
       isActive: false,
       isError: false,
       isExcluded: false,
+      isIncluded: false,
       isPaused: false,
       isNetworkError: false,
     }
@@ -423,6 +446,7 @@ export class IPProtectionToolbarButton {
     let isNetworkError = status.isNetworkError;
     let isError = status.isError && !isNetworkError;
     let isExcluded = status.isExcluded && this.isExceptionsFeatureEnabled;
+    let isIncluded = status.isIncluded;
     let isPaused = status.isPaused;
     let l10nId =
       isError || isNetworkError
@@ -434,6 +458,7 @@ export class IPProtectionToolbarButton {
       "ipprotection-network-error",
       "ipprotection-error",
       "ipprotection-excluded",
+      "ipprotection-included",
       "ipprotection-paused"
     );
 
@@ -445,6 +470,8 @@ export class IPProtectionToolbarButton {
       toolbaritem.classList.add("ipprotection-paused");
     } else if (isExcluded && isActive) {
       toolbaritem.classList.add("ipprotection-excluded");
+    } else if (isIncluded) {
+      toolbaritem.classList.add("ipprotection-included");
     } else if (isActive) {
       toolbaritem.classList.add("ipprotection-on");
     }
@@ -520,6 +547,10 @@ export class IPProtectionToolbarButton {
     );
     lazy.IPPExceptionsManager.removeEventListener(
       "IPPExceptionsManager:ExclusionChanged",
+      this.handleEvent
+    );
+    lazy.IPPExceptionsManager.removeEventListener(
+      "IPPExceptionsManager:InclusionChanged",
       this.handleEvent
     );
   }

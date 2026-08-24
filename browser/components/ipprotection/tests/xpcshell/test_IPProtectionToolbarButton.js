@@ -70,6 +70,23 @@ add_task(function test_update_icon_status() {
     "Toolbaritem classlist should include ipprotection-excluded"
   );
 
+  // IP Protection covers this page through an inclusion rule
+  fakeToolbarButton.updateIconStatus(fakeToolbarItem, {
+    isActive: false,
+    isError: false,
+    isExcluded: false,
+    isIncluded: true,
+  });
+
+  Assert.ok(
+    fakeToolbarItem.classList.contains("ipprotection-included"),
+    "Toolbaritem classlist should include ipprotection-included"
+  );
+  Assert.ok(
+    !fakeToolbarItem.classList.contains("ipprotection-on"),
+    "The included state should be distinct from the connected one"
+  );
+
   // IP Protection error
   // isError should override the active status even if isActive is set to true
   fakeToolbarButton.updateIconStatus(fakeToolbarItem, {
@@ -153,6 +170,10 @@ add_task(function test_update_icon_status() {
   Assert.ok(
     !fakeToolbarItem.classList.contains("ipprotection-excluded"),
     "Toolbaritem classlist should not include ipprotection-excluded"
+  );
+  Assert.ok(
+    !fakeToolbarItem.classList.contains("ipprotection-included"),
+    "Toolbaritem classlist should not include ipprotection-included"
   );
 
   // Cleanup
