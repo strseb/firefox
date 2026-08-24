@@ -39,7 +39,10 @@ know what you are doing.
 
 `browser.ipProtection.autoStartEnabled` (boolean, default: `false`)
 
-: Enables the auto-start helper so the proxy connects during browser startup.
+: Enables the auto-start helper so the proxy connects during browser startup,
+  routing everything. Independently of this pref, `IPPInclusionActivator` keeps
+  a connection up in inclusion mode while a site is marked as always using the
+  VPN (an `ipp-vpn` permission with `ALLOW_ACTION`).
 
 `browser.ipProtection.autoStartPrivateEnabled` (boolean, default: `false`)
 

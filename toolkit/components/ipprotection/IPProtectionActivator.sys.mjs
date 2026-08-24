@@ -24,6 +24,8 @@ if (AppConstants.MOZ_ENTERPRISE) {
       "moz-src:///toolkit/components/ipprotection/IPPAutoRestore.sys.mjs",
     IPPAutoStartHelpers:
       "moz-src:///toolkit/components/ipprotection/IPPAutoStart.sys.mjs",
+    IPPInclusionActivatorHelpers:
+      "moz-src:///toolkit/components/ipprotection/IPPInclusionActivator.sys.mjs",
   });
 }
 
@@ -35,7 +37,11 @@ const coreHelpers = [
   IPPSessionPrefManager,
   ...(AppConstants.MOZ_ENTERPRISE
     ? lazy.IPPAlwaysOnHelpers
-    : [lazy.IPPAutoRestoreHelper, ...lazy.IPPAutoStartHelpers]),
+    : [
+        lazy.IPPAutoRestoreHelper,
+        ...lazy.IPPAutoStartHelpers,
+        ...lazy.IPPInclusionActivatorHelpers,
+      ]),
   IPPNimbusHelper,
 ];
 

@@ -60,7 +60,7 @@ export class IPPAutoRestoreSingleton {
   }
 
   init() {
-    if (!this.autoRestorePref || this.autoStartPref || !this.userEnabled) {
+    if (!this.willAutoRestore) {
       return;
     }
 
@@ -96,6 +96,17 @@ export class IPPAutoRestoreSingleton {
       Services.obs.removeObserver(this, RESTORING_ON_STARTUP);
       this.#hasRestoringObserver = undefined;
     }
+  }
+
+  /**
+   * Whether this helper is set up to restore the connection this session.
+   * IPPInclusionActivator reads this so it does not race a restore, which
+   * brings the proxy up in full mode.
+   *
+   * @returns {boolean}
+   */
+  get willAutoRestore() {
+    return this.autoRestorePref && !this.autoStartPref && this.userEnabled;
   }
 
   get shouldRestore() {

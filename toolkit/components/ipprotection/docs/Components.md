@@ -169,6 +169,11 @@ IPPAutoStart
 
 : Activates the proxy at startup time when auto-start is enabled.
 
+IPPInclusionActivator
+
+: Keeps a connection up in inclusion mode while at least one site is marked as
+  always using the VPN, both at startup and after the proxy is stopped.
+
 IPPAutoRestoreHelper
 
 : Restores the proxy state after a crash or restart when auto-restore is enabled.
