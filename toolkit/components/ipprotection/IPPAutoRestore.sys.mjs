@@ -75,10 +75,10 @@ export class IPPAutoRestoreSingleton {
 
   initOnStartupCompleted() {
     if (this.#willRestore) {
-      lazy.IPPProxyManager.start(
-        false,
-        PrivateBrowsingUtils.permanentPrivateBrowsing
-      );
+      lazy.IPPProxyManager.start({
+        userAction: false,
+        inPrivateBrowsing: PrivateBrowsingUtils.permanentPrivateBrowsing,
+      });
       this.#willRestore = false;
     }
     this.uninit();

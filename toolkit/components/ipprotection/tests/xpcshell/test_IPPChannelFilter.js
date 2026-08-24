@@ -4,7 +4,7 @@
 
 "use strict";
 
-const { IPPChannelFilter, IPPMode } = ChromeUtils.importESModule(
+const { IPPChannelFilter, IPPProxyModes } = ChromeUtils.importESModule(
   "moz-src:///toolkit/components/ipprotection/IPPChannelFilter.sys.mjs"
 );
 
@@ -659,7 +659,7 @@ add_task(async function test_suspend_queues_channels_until_resume() {
 
   // isDocument:true bypasses the system-channel guard in shouldProxy when
   // proxyInfo is null. A real content loadingPrincipal is required so the
-  // filter resolves the rule from the principal (MODE_FULL proxies it) without
+  // filter resolves the rule from the principal (FULL proxies it) without
   // falling back to getChannelURIPrincipal on this non-nsIChannel stub.
   const fakeChannel = {
     isDocument: true,
@@ -908,7 +908,6 @@ add_task(async function test_shouldProxy_ipp_exception() {
 
 add_task(async function test_shouldProxy() {
   const INCLUSION_PREF = "browser.ipProtection.inclusion.match_patterns";
-  const MODE_PREF = "browser.ipProtection.mode";
   const GUARDIAN_PREF = "browser.ipProtection.guardian.endpoint";
 
   // Excluded origins are derived from the excluded-URL prefs; point one at
@@ -920,22 +919,25 @@ add_task(async function test_shouldProxy() {
 
   // For cases 1-4 we want to test mode/inclusion/exclusion logic, not the
   // pre-init bypass, so give every filter a truthy proxyInfo.
-  const makeFilter = () => {
+  const makeFilter = mode => {
     const f = IPPChannelFilter.create();
     f.proxyInfo = {};
+    if (mode) {
+      f.mode = mode;
+    }
     return f;
   };
 
-  // 1. MODE_FULL (default): regular URL is proxied
+  // 1. FULL (default): regular URL is proxied
   Assert.ok(
     makeFilter().shouldProxy(makeChannel("http://example.com/")),
-    "MODE_FULL: regular URL should be proxied"
+    "FULL: regular URL should be proxied"
   );
 
-  // 2. MODE_FULL: excluded origin is not proxied
+  // 2. FULL: excluded origin is not proxied
   Assert.ok(
     !makeFilter().shouldProxy(makeChannel("http://excluded.com/path")),
-    "MODE_FULL: excluded origin should not be proxied"
+    "FULL: excluded origin should not be proxied"
   );
 
   // 3. An excluded-origin pref overrides an inclusion rule. These origins cover
@@ -952,13 +954,13 @@ add_task(async function test_shouldProxy() {
   );
   Services.prefs.clearUserPref(INCLUSION_PREF);
 
-  // 4. MODE_INCLUSION: non-included URL is not proxied
-  Services.prefs.setIntPref(MODE_PREF, IPPMode.MODE_INCLUSION);
+  // 4. INCLUSION: non-included URL is not proxied
   Assert.ok(
-    !makeFilter().shouldProxy(makeChannel("http://example.com/")),
-    "MODE_INCLUSION: non-included URL should not be proxied"
+    !makeFilter(IPPProxyModes.INCLUSION).shouldProxy(
+      makeChannel("http://example.com/")
+    ),
+    "INCLUSION: non-included URL should not be proxied"
   );
-  Services.prefs.clearUserPref(MODE_PREF);
 
   // 5. Uninitialized filter + system-principal channel → not proxied
   Assert.ok(

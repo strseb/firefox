@@ -18,30 +18,33 @@ const { TRANSPARENT_PROXY_RESOLVES_HOST, ALWAYS_TUNNEL_VIA_PROXY } =
   Ci.nsIProxyInfo;
 const failOverTimeout = 10; // seconds
 
-const MODE_PREF = "browser.ipProtection.mode";
-
 const isXpcshell = Services.env.exists("XPCSHELL_TEST_PROFILE_DIR");
 
 /**
- * The IPP Mode the default behavior of Channels
+ * The default routing behavior of channels that no exception rule matched.
+ *
+ * Owned by IPPProxyManager, which sets it on the filter, and re-exported from
+ * there for consumers.
+ *
+ * @typedef {"full"|"private-browsing"|"tracker"|"inclusion"} IPPProxyMode
  */
-export const IPPMode = Object.freeze({
+export const IPPProxyModes = Object.freeze({
   /**
    * Tunnel Everything by default
    */
-  MODE_FULL: 0,
+  FULL: "full",
   /**
    * Tunnel if it is Private Browsing mode by default
    */
-  MODE_PB: 1,
+  PRIVATE_BROWSING: "private-browsing",
   /**
    * Tunnel if it is a tracker
    */
-  MODE_TRACKER: 2,
+  TRACKER: "tracker",
   /**
    * Tunnel No requests by default.
    */
-  MODE_INCLUSION: 3,
+  INCLUSION: "inclusion",
 });
 
 const TRACKING_FLAGS =
@@ -55,7 +58,7 @@ const TRACKING_FLAGS =
  * IPPChannelFilter is a class that implements the nsIProtocolProxyChannelFilter
  *
  * While active it will review every request the browser makes.
- * Depending on IPPMode - it will proxy the request unless a rule is attached to the Destination.
+ * Depending on its mode - it will proxy the request unless a rule is attached to the Destination.
  *
  * The include/exclude classification of a request's principal is delegated to
  * IPPExceptionsManager (see IPPExceptionsManager.sys.mjs); shouldProxy only
@@ -71,15 +74,6 @@ export class IPPChannelFilter {
    */
   static create() {
     return new IPPChannelFilter();
-  }
-
-  /**
-   * Sets the IPP Mode.
-   *
-   * @param {IPPMode} [mode] - the new mode
-   */
-  static setMode(mode) {
-    Services.prefs.setIntPref(MODE_PREF, mode);
   }
 
   /**
@@ -203,15 +197,6 @@ export class IPPChannelFilter {
     this.#processPendingChannels();
   }
 
-  constructor() {
-    XPCOMUtils.defineLazyPreferenceGetter(
-      this,
-      "mode",
-      MODE_PREF,
-      IPPMode.MODE_FULL
-    );
-  }
-
   /**
    * This method (which is required by the nsIProtocolProxyService interface)
    * is called to apply proxy filter rules for the given URI and proxy object
@@ -309,18 +294,19 @@ export class IPPChannelFilter {
 
   #matchMode(channel) {
     switch (this.mode) {
-      case IPPMode.MODE_PB:
+      case IPPProxyModes.PRIVATE_BROWSING:
         return !!channel.loadInfo.originAttributes.privateBrowsingId;
 
-      case IPPMode.MODE_TRACKER:
+      case IPPProxyModes.TRACKER:
         return !!(
           TRACKING_FLAGS &
           channel.loadInfo.triggeringThirdPartyClassificationFlags
         );
-      case IPPMode.MODE_INCLUSION:
+      case IPPProxyModes.INCLUSION:
         return false;
-      case IPPMode.MODE_FULL:
+      case IPPProxyModes.FULL:
       default:
+        // Fail safe to proxying rather than silently routing around the VPN.
         return true;
     }
   }
@@ -464,6 +450,14 @@ export class IPPChannelFilter {
       this.#pendingChannels = [];
     }
   }
+
+  /**
+   * The default routing behavior for channels no exception rule matched.
+   * Assigned by IPPProxyManager, which owns the mode of a connection.
+   *
+   * @type {IPPProxyMode}
+   */
+  mode = IPPProxyModes.FULL;
 
   #abort = new AbortController();
   #observers = [];

@@ -100,10 +100,10 @@ class IPPAutoStartSingleton {
       case lazy.IPProtectionStates.READY:
         if (this.#shouldStartWhenReady) {
           this.#shouldStartWhenReady = false;
-          lazy.IPPProxyManager.start(
-            false,
-            PrivateBrowsingUtils.permanentPrivateBrowsing
-          );
+          lazy.IPPProxyManager.start({
+            userAction: false,
+            inPrivateBrowsing: PrivateBrowsingUtils.permanentPrivateBrowsing,
+          });
         }
         break;
 

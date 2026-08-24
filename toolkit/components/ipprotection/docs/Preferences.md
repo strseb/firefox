@@ -103,15 +103,25 @@ know what you are doing.
 
 `browser.ipProtection.mode` (integer, default: `0`)
 
-: Selects which requests are proxied by `IPPChannelFilter`:
-  `0` routes all traffic (`MODE_FULL`), `1` only private browsing windows
-  (`MODE_PB`), `2` only requests classified as tracking (`MODE_TRACKER`),
-  (`MODE_INCLUSION`), `3` routes no traffic unless matching `browser.ipProtection.inclusion.match_patterns`.
+: The default mode for new connections, when the caller of
+  `IPPProxyManager.start()` does not ask for one:
+  `0` routes all traffic (`full`), `1` only private browsing windows
+  (`private-browsing`), `2` only requests classified as tracking (`tracker`),
+  `3` routes no traffic unless it matches
+  `browser.ipProtection.inclusion.match_patterns` (`inclusion`).
 
-`browser.ipProtection.inclusion.match_patterns` (string, default: `""`)
+  The mode of a live connection is owned by `IPPProxyManager`, so changing this
+  pref does not affect a connection that is already up. Use
+  `IPPProxyManager.switch({ mode })` for that.
 
-: JSON array of URL match patterns restricting which requests are proxied.
-  When empty, all traffic is proxied according to `mode`.
+  :::{seealso}
+  [IPPProxyModes](Constants.md#proxy-modes)
+  :::
+
+`browser.ipProtection.inclusion.match_patterns` (string, default: `"[]"`)
+
+: JSON array of URL match patterns that are always proxied, whatever the mode
+  says. When empty, all traffic is proxied according to the mode.
 
   :::{seealso}
   [Match Patterns Documentation](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Match_patterns)

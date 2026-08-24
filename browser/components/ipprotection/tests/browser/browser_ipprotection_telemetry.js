@@ -135,7 +135,10 @@ add_task(async function start_in_private_browsing() {
     false,
     () => !!IPPProxyManager.activatedAt
   );
-  await lazy.IPPProxyManager.start(true, true);
+  await lazy.IPPProxyManager.start({
+    userAction: true,
+    inPrivateBrowsing: true,
+  });
   await vpnOnPromise;
 
   let startedEvents = Glean.ipprotection.started.testGetValue();

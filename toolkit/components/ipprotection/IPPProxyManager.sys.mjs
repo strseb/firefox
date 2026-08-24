@@ -4,12 +4,16 @@
 
 import { XPCOMUtils } from "resource://gre/modules/XPCOMUtils.sys.mjs";
 import { AUTH_ERRORS } from "moz-src:///toolkit/components/ipprotection/IPPAuthProvider.sys.mjs";
+import {
+  IPPChannelFilter,
+  IPPProxyModes,
+} from "moz-src:///toolkit/components/ipprotection/IPPChannelFilter.sys.mjs";
+
+export { IPPProxyModes };
 
 const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
-  IPPChannelFilter:
-    "moz-src:///toolkit/components/ipprotection/IPPChannelFilter.sys.mjs",
   IPPLifecycleHelper:
     "moz-src:///toolkit/components/ipprotection/IPPLifecycleHelper.sys.mjs",
   IPPNetworkUtils:
@@ -149,6 +153,19 @@ export const IPPProxyStates = Object.freeze({
   PAUSED: "paused",
 });
 
+const MODE_PREF = "browser.ipProtection.mode";
+
+/**
+ * The mode a connection uses when start() was not given one, indexed by the
+ * integer value of MODE_PREF.
+ */
+const MODE_BY_PREF_VALUE = Object.freeze([
+  IPPProxyModes.FULL,
+  IPPProxyModes.PRIVATE_BROWSING,
+  IPPProxyModes.TRACKER,
+  IPPProxyModes.INCLUSION,
+]);
+
 /**
  * Schedules a callback to be triggered at a specific timepoint.
  *
@@ -211,6 +228,8 @@ class IPPProxyManagerSingleton extends EventTarget {
   /** @type {{ promise: Promise<void>, controller: AbortController } | null} */
   #rotation = null;
   #activatedAt = 0;
+  /** @type {import("./IPPChannelFilter.sys.mjs").IPPProxyMode | null} */
+  #mode = null;
 
   #rotationTimer = 0;
   #usageRefreshAbortController = null;
@@ -296,6 +315,36 @@ class IPPProxyManagerSingleton extends EventTarget {
     return this.#connection?.isolationKey;
   }
 
+  /**
+   * The mode the live connection is routing with, or null if there is none.
+   *
+   * @returns {import("./IPPChannelFilter.sys.mjs").IPPProxyMode | null}
+   */
+  get mode() {
+    return this.#state === IPPProxyStates.ACTIVE ? this.#mode : null;
+  }
+
+  /**
+   * @param {string} [requested]
+   *  A mode a caller asked for, if any.
+   * @returns {import("./IPPChannelFilter.sys.mjs").IPPProxyMode}
+   *  The requested mode, else the configured default, else FULL.
+   */
+  #resolveMode(requested) {
+    if (requested !== undefined) {
+      if (Object.values(IPPProxyModes).includes(requested)) {
+        return requested;
+      }
+      lazy.logConsole.warn("Unknown proxy mode, using full:", requested);
+      return IPPProxyModes.FULL;
+    }
+
+    return (
+      MODE_BY_PREF_VALUE[Services.prefs.getIntPref(MODE_PREF, 0)] ??
+      IPPProxyModes.FULL
+    );
+  }
+
   get hasValidProxyPass() {
     return !!this.#pass?.isValid();
   }
@@ -317,7 +366,10 @@ class IPPProxyManagerSingleton extends EventTarget {
 
   createChannelFilter() {
     if (!this.#connection) {
-      this.#connection = lazy.IPPChannelFilter.create();
+      this.#connection = IPPChannelFilter.create();
+      // Filters can be created before start() (early startup, auto-restore),
+      // so fall back to the configured default when no mode is in force yet.
+      this.#connection.mode = this.#resolveMode(this.#mode ?? undefined);
       this.#connection.start();
     }
   }
@@ -326,6 +378,7 @@ class IPPProxyManagerSingleton extends EventTarget {
     if (this.#connection) {
       this.#connection.stop();
       this.#connection = null;
+      this.#mode = null;
     }
   }
 
@@ -340,23 +393,51 @@ class IPPProxyManagerSingleton extends EventTarget {
   /**
    * Start the proxy if the user is eligible.
    *
-   * @param {boolean} userAction
+   * @param {object} [options]
+   * @param {boolean} [options.userAction]
    * True if started by user action, false if system action
-   * @param {boolean} inPrivateBrowsing
+   * @param {boolean} [options.inPrivateBrowsing]
    * True if started from a private browsing window
-   * @param {string} [country]
-   * Optional ISO 3166-1 alpha-2 country code to route through. When
-   * omitted, the recommended (anycast) location is used.
+   * @param {string} [options.country]
+   * ISO 3166-1 alpha-2 country code to route through. When omitted, the
+   * recommended (anycast) location is used.
+   * @param {string} [options.mode]
+   * One of IPPProxyModes. When omitted, the configured default is used. An
+   * already active connection is moved to this mode rather than restarted, so
+   * callers can widen a narrower connection by starting it again.
    * @returns {Promise<{started: boolean, error?: string}>}
    * Started is true if successfully connected, error contains the error message if it fails.
    */
-  async start(userAction = true, inPrivateBrowsing = false, country) {
+  async start(options = {}) {
+    if (typeof options !== "object" || options === null) {
+      throw new TypeError("IPPProxyManager.start() takes an options object");
+    }
+
+    const {
+      userAction = true,
+      inPrivateBrowsing = false,
+      country,
+      mode,
+    } = options;
+
     if (this.#state === IPPProxyStates.ACTIVATING) {
       if (!this.#activatingPromise) {
         throw new Error(ERRORS.MISSING_PROMISE);
       }
 
-      return this.#activatingPromise;
+      // The activation already in flight may be using a narrower mode than
+      // this caller asked for, so move it over once it lands.
+      return this.#activatingPromise.then(result => {
+        if (result?.started) {
+          this.#moveToMode(mode);
+        }
+        return result;
+      });
+    }
+
+    if (this.#state === IPPProxyStates.ACTIVE) {
+      this.#moveToMode(mode);
+      return { started: true };
     }
 
     if (this.#state === IPPProxyStates.NOT_READY) {
@@ -392,6 +473,8 @@ class IPPProxyManagerSingleton extends EventTarget {
       },
       { once: true }
     );
+
+    this.#mode = this.#resolveMode(mode);
 
     this.#activatingPromise = Promise.race([
       this.#startInternal(abortSignal, country),
@@ -456,6 +539,9 @@ class IPPProxyManagerSingleton extends EventTarget {
     }
 
     this.createChannelFilter();
+    // A filter may already exist from early startup or auto-restore, so apply
+    // the mode this activation resolved to it.
+    this.#connection.mode = this.#mode;
 
     // If the current proxy pass is valid, no need to re-authenticate.
     // Throws an error if the proxy pass is not available.
@@ -562,14 +648,62 @@ class IPPProxyManagerSingleton extends EventTarget {
   }
 
   /**
-   * Switch the active proxy connection to a server in a different country.
+   * Moves an active connection to the given mode, if it is not there already.
    *
-   * @param {string} country - country code
+   * @param {string} [mode]
+   *  One of IPPProxyModes, or undefined for the configured default.
+   */
+  #moveToMode(mode) {
+    if (this.#resolveMode(mode) === this.#mode) {
+      return;
+    }
+    this.switch({ mode });
+  }
+
+  /**
+   * Change the country and/or the mode of the active connection, without
+   * deactivating.
+   *
+   * Passing no options at all re-points the connection at the currently
+   * recommended server, which is how the serverlist hot-swap uses it. A mode
+   * change on its own only affects channels opened from now on: the connection
+   * is left alone.
+   *
+   * @param {object} [options]
+   * @param {string} [options.country]
+   *  Country code, or a falsy value for the recommended location.
+   * @param {string} [options.mode]
+   *  One of IPPProxyModes.
    * @returns {{switched: boolean, error?: string}}
    */
-  switch(country) {
+  switch(options = {}) {
+    if (typeof options !== "object" || options === null) {
+      throw new TypeError("IPPProxyManager.switch() takes an options object");
+    }
+
     if (this.#state !== IPPProxyStates.ACTIVE) {
       return { switched: false, error: ERRORS.NOT_READY };
+    }
+
+    const { country, mode } = options;
+    const changeMode = Object.hasOwn(options, "mode");
+    // Only a mode was asked for: leave the connection alone. Anything else,
+    // including no options at all, re-points it.
+    const changeServer = !changeMode || Object.hasOwn(options, "country");
+
+    // TODO: a mode change dispatches no event, so consumers that render the
+    // mode - the toolbar button's included state, the panel's enabled state -
+    // only catch up on the next state change, tab switch or navigation, or by
+    // refreshing themselves right after calling this. Modes picked at start()
+    // are fine, because activation dispatches StateChanged.
+    if (changeMode) {
+      this.#mode = this.#resolveMode(mode);
+      this.#connection.mode = this.#mode;
+      lazy.logConsole.debug("Switching to mode:", this.#mode);
+    }
+
+    if (!changeServer) {
+      return { switched: true };
     }
 
     const location = country

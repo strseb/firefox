@@ -519,11 +519,11 @@ export class IPProtectionPanel {
       }
     }
 
-    const { error } = await lazy.IPPProxyManager.start(
-      true,
+    const { error } = await lazy.IPPProxyManager.start({
+      userAction: true,
       inPrivateBrowsing,
-      country
-    );
+      country,
+    });
     // Cancellation, an exhausted quota and a not-ready proxy are already
     // represented elsewhere in the UI, so they must not raise an error message.
     const handledElsewhere = [
@@ -1311,7 +1311,9 @@ export class IPProtectionPanel {
       Glean.ipprotection.locationChanged.record({ location: code });
       Services.prefs.setStringPref(EGRESS_LOCATION_PREF, code);
       if (lazy.IPPProxyManager.state === lazy.IPPProxyStates.ACTIVE) {
-        lazy.IPPProxyManager.switch(code === "REC" ? undefined : code);
+        lazy.IPPProxyManager.switch({
+          country: code === "REC" ? undefined : code,
+        });
       }
       this.panelMultiView?.goBack();
     }

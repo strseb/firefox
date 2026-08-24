@@ -123,11 +123,14 @@ GuardianClient
 IPPChannelFilter
 
 : Main network component. It processes network requests and decides which ones
-  should go through the proxy.
+  should go through the proxy, applying the mode it was given by
+  `IPPProxyManager`.
 
 IPPProxyManager
 
 : Implements the proxy activation/deactivation and exposes the current status.
+  It owns a connection's country and mode: both can be passed to `start()` and
+  changed on a live connection with `switch({ country, mode })`.
 
 IPProtectionService
 

@@ -9,8 +9,6 @@ const ONBOARDING_MESSAGE_MASK_PREF =
   "browser.ipProtection.onboardingMessageMask";
 const PERM_NAME = "ipp-vpn";
 const INCLUSION_PREF = "browser.ipProtection.inclusion.match_patterns";
-const MODE_PREF = "browser.ipProtection.mode";
-const MODE_INCLUSION = 3;
 const GUARDIAN_PREF = "browser.ipProtection.guardian.endpoint";
 
 const makePrincipal = url =>
@@ -515,10 +513,8 @@ add_task(async function test_getPrincipalRule_excluded_origin() {
 add_task(
   async function test_getPrincipalRule_excluded_origin_beats_inclusion() {
     Services.perms.removeByType(PERM_NAME);
-    // MODE_INCLUSION with an all-URLs pattern: every http(s) origin matches the
-    // inclusion set. Set both prefs before init() so #inclusionSet is built from
-    // them.
-    Services.prefs.setIntPref(MODE_PREF, MODE_INCLUSION);
+    // An all-URLs inclusion pattern: every http(s) origin matches the inclusion
+    // set. Set the pref before init() so #inclusionSet is built from it.
     Services.prefs.setStringPref(INCLUSION_PREF, JSON.stringify(["*://*/*"]));
     Services.prefs.setStringPref(
       GUARDIAN_PREF,
@@ -543,7 +539,6 @@ add_task(
       "a non-excluded origin still matches the all-URLs inclusion pattern -> INCLUDED"
     );
 
-    Services.prefs.clearUserPref(MODE_PREF);
     Services.prefs.clearUserPref(INCLUSION_PREF);
     Services.prefs.clearUserPref(GUARDIAN_PREF);
     IPPExceptionsManager.uninit();

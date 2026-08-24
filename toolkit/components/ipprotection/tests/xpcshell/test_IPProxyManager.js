@@ -20,6 +20,7 @@ const { IPPChannelFilter } = ChromeUtils.importESModule(
 const TIMEOUT_PREF = "browser.ipProtection.guardian.timeout";
 const RETRY_AFTER_PREF = "browser.ipProtection.guardian.retryAfter";
 const ATTEMPT_TIMEOUT_PREF = "browser.ipProtection.guardian.attemptTimeout";
+const MODE_PREF = "browser.ipProtection.mode";
 
 /**
  * Returns a promise that never resolves and rejects with the signal's reason
@@ -434,7 +435,7 @@ add_task(async function test_IPPProxyManager_non_string_error_on_activation() {
   });
 
   await IPProtectionService.init();
-  const result = await IPPProxyManager.start(false);
+  const result = await IPPProxyManager.start({ userAction: false });
 
   Assert.equal(
     result.error,
@@ -458,7 +459,7 @@ add_task(async function test_IPPProxyManager_catastrophic_on_500() {
   });
 
   await IPProtectionService.init();
-  const result = await IPPProxyManager.start(false);
+  const result = await IPPProxyManager.start({ userAction: false });
 
   Assert.equal(
     result.error,
@@ -491,7 +492,7 @@ add_task(async function test_IPPProxyManager_activation_failure() {
     "IP Protection service should be ready"
   );
 
-  await IPPProxyManager.start(false);
+  await IPPProxyManager.start({ userAction: false });
 
   Assert.equal(
     IPPProxyManager.state,
@@ -632,7 +633,7 @@ add_task(async function test_IPPProxyManager_unlimited_usage() {
   IPProtectionService.init();
   await waitForReady;
 
-  await IPPProxyManager.start(false);
+  await IPPProxyManager.start({ userAction: false });
 
   Assert.equal(
     IPPProxyManager.state,
@@ -694,7 +695,7 @@ add_task(async function test_IPPProxytates_active() {
     "IP Protection service should be ready"
   );
 
-  const startPromise = IPPProxyManager.start(false);
+  const startPromise = IPPProxyManager.start({ userAction: false });
 
   Assert.equal(
     IPPProxyManager.state,
@@ -762,9 +763,9 @@ add_task(async function test_IPPProxytates_start_stop() {
     "IP Protection service should be ready"
   );
 
-  IPPProxyManager.start(false);
-  IPPProxyManager.start(false);
-  IPPProxyManager.start(false);
+  IPPProxyManager.start({ userAction: false });
+  IPPProxyManager.start({ userAction: false });
+  IPPProxyManager.start({ userAction: false });
 
   IPPProxyManager.stop(false);
   IPPProxyManager.stop(false);
@@ -1882,7 +1883,7 @@ add_task(async function test_IPPProxyManager_start_forwards_country() {
     "IPPProxyManager:StateChanged",
     () => IPPProxyManager.state === IPPProxyStates.ACTIVE
   );
-  await IPPProxyManager.start(true, false, "US");
+  await IPPProxyManager.start({ country: "US" });
   await activeEvent;
 
   Assert.ok(
@@ -1925,7 +1926,7 @@ add_task(
       "IPPProxyManager:StateChanged",
       () => IPPProxyManager.state === IPPProxyStates.ACTIVE
     );
-    await IPPProxyManager.start(true, false);
+    await IPPProxyManager.start();
     await activeEvent;
 
     Assert.ok(
@@ -1958,7 +1959,7 @@ add_task(async function test_IPPProxyManager_switch_noop_when_not_active() {
 
   await readyEvent;
 
-  const result = IPPProxyManager.switch("US");
+  const result = IPPProxyManager.switch({ country: "US" });
 
   Assert.deepEqual(
     result,
@@ -2001,10 +2002,10 @@ add_task(async function test_IPPProxyManager_switch_from_active() {
     () => IPPProxyManager.state === IPPProxyStates.ACTIVE
   );
 
-  await IPPProxyManager.start(true, false);
+  await IPPProxyManager.start();
   await activeEvent;
 
-  const result = IPPProxyManager.switch("US");
+  const result = IPPProxyManager.switch({ country: "US" });
 
   Assert.deepEqual(
     result,
@@ -2054,7 +2055,7 @@ add_task(async function test_IPPProxyManager_switch_recommended() {
     () => IPPProxyManager.state === IPPProxyStates.ACTIVE
   );
 
-  await IPPProxyManager.start(true, false);
+  await IPPProxyManager.start();
   await activeEvent;
 
   const result = IPPProxyManager.switch();
@@ -2131,12 +2132,12 @@ add_task(async function test_IPPProxyManager_switch_no_server_found() {
     () => IPPProxyManager.state === IPPProxyStates.ACTIVE
   );
 
-  await IPPProxyManager.start(true, false);
+  await IPPProxyManager.start();
   await activeEvent;
 
   sandbox.stub(IPProtectionServerlist, "selectServer").returns(null);
 
-  const result = IPPProxyManager.switch("ZZ");
+  const result = IPPProxyManager.switch({ country: "ZZ" });
 
   Assert.equal(
     result.switched,
@@ -2157,5 +2158,346 @@ add_task(async function test_IPPProxyManager_switch_no_server_found() {
 
   await IPPProxyManager.stop();
   IPProtectionService.uninit();
+  sandbox.restore();
+});
+
+/**
+ * Brings the service to READY and the proxy to ACTIVE with the given start
+ * options, so the mode tasks below only contain their own assertions.
+ *
+ * @param {object} [options] - Passed to IPPProxyManager.start().
+ */
+async function startActive(options) {
+  await IPPProxyManager.reset();
+  await putServerInRemoteSettings();
+  setupStubs();
+  await initServiceToReady();
+
+  const activeEvent = waitForProxyState(IPPProxyStates.ACTIVE);
+  await IPPProxyManager.start(options);
+  await activeEvent;
+}
+
+async function stopAndUninit() {
+  await IPPProxyManager.stop();
+  IPProtectionService.uninit();
+}
+
+/**
+ * With no mode requested, a connection runs in FULL, and the mode is only
+ * readable while it is up.
+ */
+add_task(async function test_IPPProxyManager_mode_defaults_to_full() {
+  await IPPProxyManager.reset();
+  await putServerInRemoteSettings();
+  setupStubs();
+  await initServiceToReady();
+
+  Assert.equal(
+    IPPProxyManager.mode,
+    null,
+    "mode should be null while there is no connection"
+  );
+
+  const activeEvent = waitForProxyState(IPPProxyStates.ACTIVE);
+  await IPPProxyManager.start();
+  await activeEvent;
+
+  Assert.equal(
+    IPPProxyManager.mode,
+    IPPProxyModes.FULL,
+    "mode should default to FULL"
+  );
+  Assert.equal(
+    IPPProxyManager.channelFilter().mode,
+    IPPProxyModes.FULL,
+    "the channel filter should be routing in FULL"
+  );
+
+  await stopAndUninit();
+
+  Assert.equal(IPPProxyManager.mode, null, "stop() should clear the mode");
+});
+
+/**
+ * A mode passed to start() bubbles down into the channel filter.
+ */
+add_task(async function test_IPPProxyManager_start_with_mode() {
+  await startActive({ mode: IPPProxyModes.INCLUSION });
+
+  Assert.equal(
+    IPPProxyManager.mode,
+    IPPProxyModes.INCLUSION,
+    "mode should be the requested one"
+  );
+  Assert.equal(
+    IPPProxyManager.channelFilter().mode,
+    IPPProxyModes.INCLUSION,
+    "the channel filter should have received the requested mode"
+  );
+
+  await stopAndUninit();
+});
+
+/**
+ * browser.ipProtection.mode is the default for connections that don't ask for a
+ * mode, and an explicit mode beats it.
+ */
+add_task(async function test_IPPProxyManager_mode_defaults_from_pref() {
+  Services.prefs.setIntPref(MODE_PREF, 3);
+
+  await startActive();
+
+  Assert.equal(
+    IPPProxyManager.mode,
+    IPPProxyModes.INCLUSION,
+    "the mode pref should seed the default"
+  );
+
+  await IPPProxyManager.stop();
+
+  const activeEvent = waitForProxyState(IPPProxyStates.ACTIVE);
+  await IPPProxyManager.start({ mode: IPPProxyModes.FULL });
+  await activeEvent;
+
+  Assert.equal(
+    IPPProxyManager.mode,
+    IPPProxyModes.FULL,
+    "an explicit mode should beat the pref"
+  );
+
+  await stopAndUninit();
+  Services.prefs.clearUserPref(MODE_PREF);
+});
+
+/**
+ * An unrecognized mode falls back to FULL rather than routing around the VPN.
+ */
+add_task(async function test_IPPProxyManager_unknown_mode_falls_back() {
+  await startActive({ mode: "not-a-mode" });
+
+  Assert.equal(
+    IPPProxyManager.mode,
+    IPPProxyModes.FULL,
+    "an unknown mode should fall back to FULL"
+  );
+
+  await stopAndUninit();
+});
+
+/**
+ * A mode-only switch updates the live filter without touching the connection.
+ */
+add_task(async function test_IPPProxyManager_switch_mode_only() {
+  await startActive();
+
+  const sandbox = sinon.createSandbox();
+  const suspendSpy = sandbox.spy(IPPChannelFilter.prototype, "suspend");
+  const initSpy = sandbox.spy(IPPChannelFilter.prototype, "initialize");
+
+  const result = IPPProxyManager.switch({ mode: IPPProxyModes.TRACKER });
+
+  Assert.deepEqual(
+    result,
+    { switched: true },
+    "switch() with only a mode should report success"
+  );
+  Assert.equal(
+    IPPProxyManager.mode,
+    IPPProxyModes.TRACKER,
+    "the new mode should be in force"
+  );
+  Assert.equal(
+    IPPProxyManager.channelFilter().mode,
+    IPPProxyModes.TRACKER,
+    "the live channel filter should have the new mode"
+  );
+  Assert.ok(
+    suspendSpy.notCalled,
+    "a mode-only switch should not suspend the connection"
+  );
+  Assert.ok(
+    initSpy.notCalled,
+    "a mode-only switch should not re-initialize the connection"
+  );
+
+  await stopAndUninit();
+  sandbox.restore();
+});
+
+/**
+ * Switching country alone re-points the connection and leaves the mode as it is.
+ */
+add_task(async function test_IPPProxyManager_switch_country_keeps_mode() {
+  await startActive({ mode: IPPProxyModes.INCLUSION });
+
+  const sandbox = sinon.createSandbox();
+  const initSpy = sandbox.spy(IPPChannelFilter.prototype, "initialize");
+
+  const result = IPPProxyManager.switch({ country: "US" });
+
+  Assert.deepEqual(result, { switched: true }, "switch() should succeed");
+  Assert.ok(initSpy.called, "the connection should be re-initialized");
+  Assert.equal(
+    IPPProxyManager.mode,
+    IPPProxyModes.INCLUSION,
+    "a country switch should not change the mode"
+  );
+
+  await stopAndUninit();
+  sandbox.restore();
+});
+
+/**
+ * Both options together apply the mode and re-point the connection.
+ */
+add_task(async function test_IPPProxyManager_switch_country_and_mode() {
+  await startActive();
+
+  const sandbox = sinon.createSandbox();
+  const getLocationSpy = sandbox.spy(IPProtectionServerlist, "getLocation");
+  const initSpy = sandbox.spy(IPPChannelFilter.prototype, "initialize");
+
+  const result = IPPProxyManager.switch({
+    country: "US",
+    mode: IPPProxyModes.PRIVATE_BROWSING,
+  });
+
+  Assert.deepEqual(result, { switched: true }, "switch() should succeed");
+  Assert.ok(
+    getLocationSpy.calledWith("US"),
+    "the requested country should be looked up"
+  );
+  Assert.ok(initSpy.called, "the connection should be re-initialized");
+  Assert.equal(
+    IPPProxyManager.channelFilter().mode,
+    IPPProxyModes.PRIVATE_BROWSING,
+    "the mode should be applied as well"
+  );
+
+  await stopAndUninit();
+  sandbox.restore();
+});
+
+/**
+ * A mode switch needs an active connection.
+ */
+add_task(async function test_IPPProxyManager_switch_mode_when_not_active() {
+  await IPPProxyManager.reset();
+  await putServerInRemoteSettings();
+  setupStubs();
+  await initServiceToReady();
+
+  const result = IPPProxyManager.switch({ mode: IPPProxyModes.TRACKER });
+
+  Assert.deepEqual(
+    result,
+    { switched: false, error: ERRORS.NOT_READY },
+    "switch() should refuse a mode change when not ACTIVE"
+  );
+  Assert.equal(IPPProxyManager.mode, null, "mode should still be null");
+
+  IPProtectionService.uninit();
+});
+
+/**
+ * The options object is mandatory, so a leftover positional call fails loudly
+ * instead of silently defaulting userAction and skewing telemetry.
+ */
+add_task(async function test_IPPProxyManager_rejects_positional_args() {
+  await Assert.rejects(
+    IPPProxyManager.start(false),
+    /options object/,
+    "start() should reject a positional argument"
+  );
+
+  Assert.throws(
+    () => IPPProxyManager.switch("US"),
+    /options object/,
+    "switch() should throw on a positional argument"
+  );
+});
+
+/**
+ * A mode belongs to one connection: the next one starts from the default again.
+ */
+add_task(async function test_IPPProxyManager_mode_does_not_leak() {
+  await startActive({ mode: IPPProxyModes.INCLUSION });
+  await IPPProxyManager.stop();
+
+  const activeEvent = waitForProxyState(IPPProxyStates.ACTIVE);
+  await IPPProxyManager.start();
+  await activeEvent;
+
+  Assert.equal(
+    IPPProxyManager.mode,
+    IPPProxyModes.FULL,
+    "the previous connection's mode should not carry over"
+  );
+  Assert.equal(
+    IPPProxyManager.channelFilter().mode,
+    IPPProxyModes.FULL,
+    "the new channel filter should be routing in FULL"
+  );
+
+  await stopAndUninit();
+});
+
+/**
+ * Starting an already active connection moves it to the requested mode instead
+ * of reconnecting, so a caller can widen a narrower connection.
+ */
+add_task(async function test_IPPProxyManager_start_widens_active_connection() {
+  await startActive({ mode: IPPProxyModes.INCLUSION });
+
+  const sandbox = sinon.createSandbox();
+  const suspendSpy = sandbox.spy(IPPChannelFilter.prototype, "suspend");
+  const initSpy = sandbox.spy(IPPChannelFilter.prototype, "initialize");
+
+  const result = await IPPProxyManager.start({ mode: IPPProxyModes.FULL });
+
+  Assert.deepEqual(
+    result,
+    { started: true },
+    "start() should report success for an active connection"
+  );
+  Assert.equal(
+    IPPProxyManager.mode,
+    IPPProxyModes.FULL,
+    "the connection should have moved to the requested mode"
+  );
+  Assert.equal(
+    IPPProxyManager.channelFilter().mode,
+    IPPProxyModes.FULL,
+    "the live channel filter should have the requested mode"
+  );
+  Assert.ok(
+    suspendSpy.notCalled && initSpy.notCalled,
+    "widening should not tear the connection down"
+  );
+
+  await stopAndUninit();
+  sandbox.restore();
+});
+
+/**
+ * Starting an active connection in the mode it already runs in is a no-op.
+ */
+add_task(async function test_IPPProxyManager_start_same_mode_is_a_noop() {
+  await startActive({ mode: IPPProxyModes.INCLUSION });
+
+  const sandbox = sinon.createSandbox();
+  const switchSpy = sandbox.spy(IPPProxyManager, "switch");
+
+  await IPPProxyManager.start({ mode: IPPProxyModes.INCLUSION });
+
+  Assert.ok(switchSpy.notCalled, "no switch is needed for the same mode");
+  Assert.equal(
+    IPPProxyManager.mode,
+    IPPProxyModes.INCLUSION,
+    "the mode is unchanged"
+  );
+
+  await stopAndUninit();
   sandbox.restore();
 });

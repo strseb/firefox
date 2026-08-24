@@ -184,7 +184,7 @@ export const GeckoViewIPProtection = {
         // request to switch the connection to the given country.
         if (lazy.IPPProxyManager.state === "active") {
           const { switched, error } =
-            lazy.IPPProxyManager.switch(aData?.country) ?? {};
+            lazy.IPPProxyManager.switch({ country: aData?.country }) ?? {};
           if (error) {
             aCallback.onError(error);
           } else if (switched) {
@@ -194,11 +194,11 @@ export const GeckoViewIPProtection = {
           }
           break;
         }
-        lazy.IPPProxyManager.start(
-          aData?.userAction ?? true,
-          aData?.inPrivateBrowsing ?? false,
-          aData?.country
-        )
+        lazy.IPPProxyManager.start({
+          userAction: aData?.userAction ?? true,
+          inPrivateBrowsing: aData?.inPrivateBrowsing ?? false,
+          country: aData?.country,
+        })
           .then(({ started, error } = {}) => {
             if (started) {
               aCallback.onSuccess();

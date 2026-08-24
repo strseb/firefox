@@ -160,10 +160,10 @@ class IPPAlwaysOnSingleton {
         return;
       }
       lazy.logConsole.info("Starting proxy");
-      await lazy.IPPProxyManager.start(
-        false,
-        PrivateBrowsingUtils.permanentPrivateBrowsing
-      );
+      await lazy.IPPProxyManager.start({
+        userAction: false,
+        inPrivateBrowsing: PrivateBrowsingUtils.permanentPrivateBrowsing,
+      });
     } catch (e) {
       lazy.logConsole.error("Start request failed:", e);
     } finally {
