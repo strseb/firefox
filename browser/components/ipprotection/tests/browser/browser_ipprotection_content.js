@@ -339,3 +339,53 @@ add_task(async function test_enrolling_transitions_to_ready() {
   await closePanel();
   cleanupService();
 });
+
+/**
+ * The panel only treats a full connection as enabled: turning the VPN on from
+ * inclusion mode widens the existing connection rather than reconnecting.
+ */
+add_task(async function test_inclusion_mode_toggle() {
+  const { IPPProxyModes } = ChromeUtils.importESModule(
+    "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs"
+  );
+
+  setupService({ isReady: true });
+  IPProtectionService.updateState();
+  await putServerInRemoteSettings();
+
+  // Connect the way IPPInclusionActivator does for an always-on site.
+  let activePromise = waitForProxyState(IPPProxyStates.ACTIVE);
+  await IPPProxyManager.start({
+    userAction: false,
+    mode: IPPProxyModes.INCLUSION,
+  });
+  await activePromise;
+
+  let content = await openPanel();
+
+  Assert.ok(
+    !content.state.isProtectionEnabled,
+    "An inclusion-mode connection should not read as enabled"
+  );
+
+  content.statusCardEl.actionButtonEl.click();
+  await content.updateComplete;
+
+  Assert.equal(
+    IPPProxyManager.state,
+    IPPProxyStates.ACTIVE,
+    "The connection should be reused"
+  );
+  Assert.equal(
+    IPPProxyManager.mode,
+    IPPProxyModes.FULL,
+    "Turning the VPN on should widen the connection to full"
+  );
+  Assert.ok(
+    content.state.isProtectionEnabled,
+    "The panel should now read as enabled"
+  );
+
+  await closePanel();
+  await IPPProxyManager.stop(false);
+});

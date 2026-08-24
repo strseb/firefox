@@ -368,6 +368,42 @@ add_task(async function test_IPProtectionPanel_started_stopped() {
 });
 
 /**
+ * Tests that a connection that only covers the included sites does not read as
+ * protection being enabled.
+ */
+add_task(async function test_IPProtectionPanel_inclusion_mode_is_not_enabled() {
+  let ipProtectionPanel = new IPProtectionPanel();
+  let fakeElement = new FakeIPProtectionPanelElement();
+  ipProtectionPanel.components.add(fakeElement);
+  ipProtectionPanel.panel = new FakeIPProtectionPanelView();
+  fakeElement.isConnected = true;
+
+  setupStubs();
+  IPProtectionService.updateState();
+
+  let activeEvent = waitForProxyState(IPPProxyStates.ACTIVE);
+  await IPPProxyManager.start({ mode: IPPProxyModes.INCLUSION });
+  await activeEvent;
+
+  Assert.ok(
+    !ipProtectionPanel.isFullyProtected,
+    "An inclusion-mode connection is not full protection"
+  );
+  Assert.equal(
+    ipProtectionPanel.state.isProtectionEnabled,
+    false,
+    "isProtectionEnabled should be false in the IPProtectionPanel state"
+  );
+  Assert.equal(
+    fakeElement.state.isProtectionEnabled,
+    false,
+    "isProtectionEnabled should be false in the fake elements state"
+  );
+
+  await IPPProxyManager.stop();
+});
+
+/**
  * Tests that locationsList is populated from IPProtectionServerlist and
  * kept in sync with IPProtectionServerlist:ListChanged events.
  */

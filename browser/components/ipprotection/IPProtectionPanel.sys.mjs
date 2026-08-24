@@ -18,6 +18,8 @@ ChromeUtils.defineESModuleGetters(lazy, {
   ERRORS: "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs",
   IPPProxyManager:
     "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs",
+  IPPProxyModes:
+    "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs",
   IPPProxyStates:
     "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs",
   IPPUsageHelper:
@@ -391,8 +393,7 @@ export class IPProtectionPanel {
       unauthenticated:
         lazy.IPProtectionService.state ===
         lazy.IPProtectionStates.UNAUTHENTICATED,
-      isProtectionEnabled:
-        lazy.IPPProxyManager.state === lazy.IPPProxyStates.ACTIVE,
+      isProtectionEnabled: this.isFullyProtected,
       location: lazy.EGRESS_LOCATION || null,
       locationsList: lazy.IPProtectionServerlist.countries,
       error: "",
@@ -506,6 +507,30 @@ export class IPProtectionPanel {
     element.requestUpdate();
   }
 
+  /**
+   * Whether the VPN is on for everything.
+   *
+   * A connection in inclusion mode only carries the sites an inclusion rule
+   * matches, so the panel does not present it as enabled: turning the VPN on
+   * from there widens it to full instead.
+   *
+   * @returns {boolean}
+   */
+  get isFullyProtected() {
+    return (
+      lazy.IPPProxyManager.state === lazy.IPPProxyStates.ACTIVE &&
+      lazy.IPPProxyManager.mode === lazy.IPPProxyModes.FULL
+    );
+  }
+
+  /**
+   * Picks up a mode change, which dispatches no state change of its own.
+   */
+  #refreshProtectionState() {
+    this.setState({ isProtectionEnabled: this.isFullyProtected });
+    this.toolbarButton?.updateState(null, { showConfirmationHint: false });
+  }
+
   async #startProxy() {
     const win = this.#window.get();
     const inPrivateBrowsing =
@@ -523,6 +548,7 @@ export class IPProtectionPanel {
       userAction: true,
       inPrivateBrowsing,
       country,
+      mode: lazy.IPPProxyModes.FULL,
     });
     // Cancellation, an exhausted quota and a not-ready proxy are already
     // represented elsewhere in the UI, so they must not raise an error message.
@@ -537,7 +563,12 @@ export class IPProtectionPanel {
         error: errorMessage,
       });
       this.toolbarButton?.updateState(null, { error: errorMessage });
+      return;
     }
+
+    // Widening an already active connection changes no state, so nothing
+    // announces it.
+    this.#refreshProtectionState();
   }
 
   #errorMessage(error) {
@@ -962,6 +993,10 @@ export class IPProtectionPanel {
       "IPPExceptionsManager:ExclusionChanged",
       this.handleEvent
     );
+    lazy.IPPExceptionsManager.addEventListener(
+      "IPPExceptionsManager:InclusionChanged",
+      this.handleEvent
+    );
     lazy.IPProtectionServerlist.addEventListener(
       "IPProtectionServerlist:ListChanged",
       this.handleEvent
@@ -991,6 +1026,10 @@ export class IPProtectionPanel {
     );
     lazy.IPPExceptionsManager.removeEventListener(
       "IPPExceptionsManager:ExclusionChanged",
+      this.handleEvent
+    );
+    lazy.IPPExceptionsManager.removeEventListener(
+      "IPPExceptionsManager:InclusionChanged",
       this.handleEvent
     );
     lazy.IPProtectionServerlist.removeEventListener(
@@ -1174,8 +1213,7 @@ export class IPProtectionPanel {
         unauthenticated:
           lazy.IPProtectionService.state ===
           lazy.IPProtectionStates.UNAUTHENTICATED,
-        isProtectionEnabled:
-          lazy.IPPProxyManager.state === lazy.IPPProxyStates.ACTIVE,
+        isProtectionEnabled: this.isFullyProtected,
         hasUpgraded: lazy.IPProtectionService.authProvider.hasUpgraded,
         error: errorType,
         isActivating:
@@ -1188,7 +1226,10 @@ export class IPProtectionPanel {
             : false,
         paused: lazy.IPPProxyManager.state === lazy.IPPProxyStates.PAUSED,
       });
-    } else if (event.type == "IPPExceptionsManager:ExclusionChanged") {
+    } else if (
+      event.type == "IPPExceptionsManager:ExclusionChanged" ||
+      event.type == "IPPExceptionsManager:InclusionChanged"
+    ) {
       this.#updateSiteData();
     } else if (event.type == "IPProtectionServerlist:ListChanged") {
       this.setState({
