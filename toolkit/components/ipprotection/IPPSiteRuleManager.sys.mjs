@@ -4,6 +4,7 @@
 
 import {
   IPPInfrastructureRuleProvider,
+  IPPPermissionRuleProvider,
   IPPPrincipalRules,
   IPPProxyableRuleProvider,
   MatchPatternPrefRule,
@@ -114,6 +115,12 @@ export class SiteRuleManager extends EventTarget {
 }
 
 /**
+ * The one writable rule store. Callers write here, after asking the manager
+ * whether the principal is manageable at all.
+ */
+export const IPPPermissionRules = new IPPPermissionRuleProvider();
+
+/**
  * The single source of truth for classifying a principal as
  * included/excluded/default for the proxy, shared by the channel filter and
  * the UI. The array order is the precedence.
@@ -125,4 +132,5 @@ export const IPPSiteRuleManager = new SiteRuleManager([
     "browser.ipProtection.inclusion.match_patterns",
     IPPPrincipalRules.INCLUDED
   ),
+  IPPPermissionRules,
 ]);

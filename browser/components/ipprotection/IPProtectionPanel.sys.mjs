@@ -9,8 +9,8 @@ ChromeUtils.defineESModuleGetters(lazy, {
   PrivateBrowsingUtils: "resource://gre/modules/PrivateBrowsingUtils.sys.mjs",
   CustomizableUI:
     "moz-src:///browser/components/customizableui/CustomizableUI.sys.mjs",
-  IPPExceptionsManager:
-    "moz-src:///toolkit/components/ipprotection/IPPExceptionsManager.sys.mjs",
+  IPPPermissionRules:
+    "moz-src:///toolkit/components/ipprotection/IPPSiteRuleManager.sys.mjs",
   IPPPrincipalRules:
     "moz-src:///toolkit/components/ipprotection/IPPSiteRuleManager.sys.mjs",
   IPPSiteRuleManager:
@@ -1207,13 +1207,19 @@ export class IPProtectionPanel {
       const win = event.target.documentGlobal;
       const principal = getSitePrincipal(win?.gBrowser);
 
-      lazy.IPPExceptionsManager.setExclusion(principal, false);
+      lazy.IPPPermissionRules.setRule(
+        principal,
+        lazy.IPPPrincipalRules.DEFAULT
+      );
       Glean.ipprotection.exclusionToggled.record({ excluded: false });
     } else if (event.type == "IPProtection:UserDisableVPNForSite") {
       const win = event.target.documentGlobal;
       const principal = getSitePrincipal(win?.gBrowser);
 
-      lazy.IPPExceptionsManager.setExclusion(principal, true);
+      lazy.IPPPermissionRules.setRule(
+        principal,
+        lazy.IPPPrincipalRules.EXCLUDED
+      );
       Glean.ipprotection.exclusionToggled.record({ excluded: true });
     } else if (event.type == "IPProtection:DismissBandwidthWarning") {
       const state = lazy.IPPUsageHelper.state;
