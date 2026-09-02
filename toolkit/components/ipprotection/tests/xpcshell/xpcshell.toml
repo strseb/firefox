@@ -25,7 +25,11 @@ prefs = ["browser.ipProtection.override.serverlist=[]"]
 
 ["test_IPPGpiAuthProvider.js"]
 
+["test_IPPInfrastructureRuleProvider.js"]
+
 ["test_IPPLifecycleHelper.js"]
+
+["test_IPPProxyableRuleProvider.js"]
 
 ["test_IPPSessionPrefManager.js"]
 

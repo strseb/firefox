@@ -2,7 +2,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { IPPPrincipalRules } from "moz-src:///toolkit/components/ipprotection/SiteRuleProviders.sys.mjs";
+import {
+  IPPInfrastructureRuleProvider,
+  IPPPrincipalRules,
+  IPPProxyableRuleProvider,
+} from "moz-src:///toolkit/components/ipprotection/SiteRuleProviders.sys.mjs";
 
 export { IPPPrincipalRules };
 
@@ -118,4 +122,7 @@ export class SiteRuleManager extends EventTarget {
  * included/excluded/default for the proxy, shared by the channel filter and
  * the UI. The array order is the precedence.
  */
-export const IPPSiteRuleManager = new SiteRuleManager([]);
+export const IPPSiteRuleManager = new SiteRuleManager([
+  new IPPProxyableRuleProvider(),
+  new IPPInfrastructureRuleProvider(),
+]);
