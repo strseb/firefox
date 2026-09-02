@@ -45,4 +45,6 @@ prefs = ["browser.ipProtection.override.serverlist=[]"]
 
 ["test_IPProxyManager.js"]
 
+["test_MatchPatternPrefRule.js"]
+
 ["test_SiteRuleManager.js"]

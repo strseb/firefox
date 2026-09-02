@@ -191,3 +191,61 @@ export class IPPInfrastructureRuleProvider extends SiteRuleProvider {
     }
   }
 }
+
+/**
+ * Applies one rule to every origin matching a MatchPatternSet, read from a
+ * pref holding a JSON array of match patterns. Used for remotely controlled
+ * lists, where the set changes without a restart.
+ */
+export class MatchPatternPrefRule extends SiteRuleProvider {
+  #pref;
+  #rule;
+  #patterns = new MatchPatternSet([], MATCH_PATTERN_OPTIONS);
+  #prefObserver = null;
+
+  /**
+   * @param {string} pref
+   *  Pref holding a JSON array of match pattern strings.
+   * @param {string} rule
+   *  The rule to apply to a principal the patterns match.
+   */
+  constructor(pref, rule) {
+    super();
+    this.#pref = pref;
+    this.#rule = rule;
+  }
+
+  init() {
+    this.#prefObserver = () => {
+      this.#rebuild();
+      this.notifyChange();
+    };
+    Services.prefs.addObserver(this.#pref, this.#prefObserver);
+    this.#rebuild();
+  }
+
+  uninit() {
+    if (!this.#prefObserver) {
+      return;
+    }
+    Services.prefs.removeObserver(this.#pref, this.#prefObserver);
+    this.#prefObserver = null;
+  }
+
+  getRule(principal) {
+    const uri = principal?.URI;
+    if (uri && this.#patterns.matches(uri)) {
+      return this.#rule;
+    }
+    return null;
+  }
+
+  #rebuild() {
+    let arr = JSON.parse(Services.prefs.getStringPref(this.#pref, "[]"));
+    if (!Array.isArray(arr)) {
+      throw new TypeError(`${this.#pref} does not contain a JSON array`);
+    }
+    let patterns = arr.filter(s => typeof s === "string" && s.length);
+    this.#patterns = new MatchPatternSet(patterns, MATCH_PATTERN_OPTIONS);
+  }
+}
