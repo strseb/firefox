@@ -112,6 +112,18 @@ export const ERRORS = Object.freeze({
   },
 });
 
+/**
+ * The steps of an activation, reported as the source of an activation failure.
+ */
+const ACTIVATION_STEPS = Object.freeze({
+  SERVERLIST: "serverlist",
+  AUTH: "auth",
+  CHANNEL_FILTER: "channel-filter",
+  PASS: "pass",
+  SERVER_SELECT: "server-select",
+  CONNECT: "connect",
+});
+
 const LOG_PREF = "browser.ipProtection.log";
 
 ChromeUtils.defineLazyGetter(lazy, "logConsole", function () {
@@ -218,6 +230,7 @@ class IPPProxyManagerSingleton extends EventTarget {
   #usageRefreshAbortController = null;
   /** @type {string | null} */
   #errorType = null;
+  #activationStep = "";
   #refreshUsageAbortController = null;
 
   constructor() {
@@ -430,6 +443,7 @@ class IPPProxyManagerSingleton extends EventTarget {
       .finally(() => {
         this.#activatingPromise = null;
         this.#activationAbortController = null;
+        this.#activationStep = "";
       });
     return this.#activatingPromise;
   }
@@ -440,6 +454,7 @@ class IPPProxyManagerSingleton extends EventTarget {
       throw ERRORS.NETWORK;
     }
 
+    this.#activationStep = ACTIVATION_STEPS.SERVERLIST;
     try {
       await lazy.IPProtectionServerlist.maybeFetchList();
     } catch (e) {
@@ -447,6 +462,7 @@ class IPPProxyManagerSingleton extends EventTarget {
       throw ERRORS.SERVERLIST_UNAVAILABLE;
     }
 
+    this.#activationStep = ACTIVATION_STEPS.AUTH;
     const notReady = await lazy.IPProtectionService.authProvider.aboutToStart();
     if (notReady) {
       throw ERRORS.from(notReady.error) || ERRORS.GENERIC;
@@ -457,11 +473,13 @@ class IPPProxyManagerSingleton extends EventTarget {
       throw abortSignal.reason ?? ERRORS.CANCELED;
     }
 
+    this.#activationStep = ACTIVATION_STEPS.CHANNEL_FILTER;
     this.createChannelFilter();
 
     // If the current proxy pass is valid, no need to re-authenticate.
     // Throws an error if the proxy pass is not available.
     if (this.#pass == null || this.#pass.shouldRotate()) {
+      this.#activationStep = ACTIVATION_STEPS.PASS;
       const { pass, usage, error } = await this.#getPassAndUsage(abortSignal);
       if (usage) {
         this.#setUsage(usage);
@@ -480,6 +498,7 @@ class IPPProxyManagerSingleton extends EventTarget {
     }
     this.#schedulePassRotation(this.#pass);
 
+    this.#activationStep = ACTIVATION_STEPS.SERVER_SELECT;
     const location = country
       ? lazy.IPProtectionServerlist.getLocation(country)
       : lazy.IPProtectionServerlist.getRecommendedLocation();
@@ -490,6 +509,7 @@ class IPPProxyManagerSingleton extends EventTarget {
 
     lazy.logConsole.debug("Server:", server?.hostname);
 
+    this.#activationStep = ACTIVATION_STEPS.CONNECT;
     this.#connection.initialize(this.#pass, server);
 
     this.networkErrorObserver.start();
@@ -934,8 +954,25 @@ class IPPProxyManagerSingleton extends EventTarget {
   #setErrorState(error) {
     this.#rotation?.controller.abort();
 
-    this.#errorType =
-      typeof error === "string" ? ERRORS.from(error) : ERRORS.GENERIC;
+    const isString = typeof error === "string";
+    this.#errorType = isString ? ERRORS.from(error) : ERRORS.GENERIC;
+    // updateState() below resets #errorType, so classify before moving state.
+    const source = this.#activationStep
+      ? `ProxyManager:${this.#activationStep}`
+      : "ProxyManager";
+    const errorType = isString ? this.#errorType : (error?.name ?? "unknown");
+    const stack = isString
+      ? ""
+      : (error?.stack ?? "")
+          .split("\n")
+          .filter(frame => /(?:moz-src|resource):\/\//.test(frame))
+          .slice(0, 8)
+          .map(frame =>
+            frame.replace("moz-src:///toolkit/components/ipprotection/", "")
+          )
+          .join("|")
+          .slice(0, 500);
+
     if (this.#state === IPPProxyStates.ACTIVE) {
       // If the proxy is active, switch to the error state.
       // Stop will need to be called to move out of the error state.
@@ -946,7 +983,7 @@ class IPPProxyManagerSingleton extends EventTarget {
     }
 
     lazy.logConsole.error(error);
-    Glean.ipprotection.error.record({ source: "ProxyManager" });
+    Glean.ipprotection.error.record({ source, errorType, stack });
   }
 
   /**

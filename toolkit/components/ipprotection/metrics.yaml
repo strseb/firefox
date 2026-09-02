@@ -59,11 +59,13 @@ ipprotection:
   error:
     type: event
     description: >
-      Recorded when the in-panel error message is triggered.
+      Recorded when IP Protection enters an error state.
     bugs:
       - https://bugzilla.mozilla.org/show_bug.cgi?id=1998500
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2068550
     data_reviews:
       - https://bugzilla.mozilla.org/show_bug.cgi?id=1998500
+      - https://bugzilla.mozilla.org/show_bug.cgi?id=2068550
     data_sensitivity:
       - interaction
     notification_emails:
@@ -74,7 +76,22 @@ ipprotection:
       source:
         type: string
         description: >
-          Module where the error originated.
+          Where the error originated, as "Module:step" when it happened during
+          a known step, for example "ProxyManager:pass".
+      errorType:
+        type: string
+        description: >
+          The code the failure was classified as, one of the ERRORS constants
+          in IPPProxyManager.sys.mjs, or the constructor name of the thrown
+          value when an exception was raised instead, for example "TypeError".
+      stack:
+        type: string
+        description: >
+          Where an unexpected exception was thrown, as up to eight
+          "function@file:line:column" frames separated by "|". Only frames
+          from privileged moz-src:// and resource:// scripts are included, so
+          no page or extension URLs can appear. Empty unless the failure was
+          an exception.
 
   paused:
     type: event
