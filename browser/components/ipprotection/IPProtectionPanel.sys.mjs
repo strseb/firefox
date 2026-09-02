@@ -12,7 +12,9 @@ ChromeUtils.defineESModuleGetters(lazy, {
   IPPExceptionsManager:
     "moz-src:///toolkit/components/ipprotection/IPPExceptionsManager.sys.mjs",
   IPPPrincipalRules:
-    "moz-src:///toolkit/components/ipprotection/IPPExceptionsManager.sys.mjs",
+    "moz-src:///toolkit/components/ipprotection/IPPSiteRuleManager.sys.mjs",
+  IPPSiteRuleManager:
+    "moz-src:///toolkit/components/ipprotection/IPPSiteRuleManager.sys.mjs",
   IPPOnboardingMessage:
     "moz-src:///browser/components/ipprotection/IPPOnboardingMessageHelper.sys.mjs",
   ERRORS: "moz-src:///toolkit/components/ipprotection/IPPProxyManager.sys.mjs",
@@ -968,8 +970,8 @@ export class IPProtectionPanel {
       "IPPAuthProvider:StateChanged",
       this.handleEvent
     );
-    lazy.IPPExceptionsManager.addEventListener(
-      "IPPExceptionsManager:ExclusionChanged",
+    lazy.IPPSiteRuleManager.addEventListener(
+      "SiteRuleManager:RuleChanged",
       this.handleEvent
     );
     lazy.IPProtectionServerlist.addEventListener(
@@ -999,8 +1001,8 @@ export class IPProtectionPanel {
       "IPProtectionService:StateChanged",
       this.handleEvent
     );
-    lazy.IPPExceptionsManager.removeEventListener(
-      "IPPExceptionsManager:ExclusionChanged",
+    lazy.IPPSiteRuleManager.removeEventListener(
+      "SiteRuleManager:RuleChanged",
       this.handleEvent
     );
     lazy.IPProtectionServerlist.removeEventListener(
@@ -1093,11 +1095,11 @@ export class IPProtectionPanel {
 
   #getSiteData() {
     const principal = getSitePrincipal(this.gBrowser);
-    if (!principal || !lazy.IPPExceptionsManager.canManage(principal)) {
+    if (!principal || !lazy.IPPSiteRuleManager.canManage(principal)) {
       return null;
     }
     const isExclusion =
-      lazy.IPPExceptionsManager.getPrincipalRule(principal) ===
+      lazy.IPPSiteRuleManager.getRule(principal) ===
       lazy.IPPPrincipalRules.EXCLUDED;
     return { isExclusion };
   }
@@ -1198,7 +1200,7 @@ export class IPProtectionPanel {
             : false,
         paused: lazy.IPPProxyManager.state === lazy.IPPProxyStates.PAUSED,
       });
-    } else if (event.type == "IPPExceptionsManager:ExclusionChanged") {
+    } else if (event.type == "SiteRuleManager:RuleChanged") {
       this.#updateSiteData();
     } else if (event.type == "IPProtectionServerlist:ListChanged") {
       this.setState({

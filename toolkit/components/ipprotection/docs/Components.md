@@ -54,7 +54,7 @@ flowchart LR
       IPPAutoRestoreHelper["Auto-Restore Helper"]
       IPPNimbusHelper["Nimbus Eligibility Helper"]
       IPPSessionPrefManager["Session Pref Manager"]
-      IPPExceptionsManager
+      IPPSiteRuleManager
     end
 
     subgraph FxaAuth["FxA Authentication (fxa/)"]
@@ -142,10 +142,15 @@ IPProtectionActivator
   browser-specific helpers before `init()` is called. It also exposes
   `setAuthProvider()` to set the active authentication provider.
 
-IPPExceptionsManager
+IPPSiteRuleManager
 
-: Manages the exceptions logic (for example, domain exclusions) in coordination
-  with the panel and preferences.
+: Classifies a principal as included/excluded/default for the proxy, and is the
+  single source of truth for that decision, shared by `IPPChannelFilter` and the
+  UI. It is a `SiteRuleManager` built from an ordered list of rule providers
+  (see `SiteRuleProviders.sys.mjs`): unproxyable traffic, VPN infrastructure origins, the
+  remote inclusion list, and the user's own per-site choices. The last of these,
+  `IPPPermissionRules`, is the only writable one and stores its rules as
+  `ipp-vpn` permissions in coordination with the panel and preferences.
 
 ### Additional proxy/telemetry components
 
