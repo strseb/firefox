@@ -87,11 +87,8 @@ export class SiteRuleManager extends EventTarget {
   }
 
   /**
-   * Whether the user can change the rule that applies to this principal.
-   *
-   * It is false for principals that are never proxyable (about:
-   * pages, loopback hosts) and for sites pinned by the inclusion list or by
-   * the VPN's own infrastructure origins.
+   * Whether the user can change the rule for this principal. False when a
+   * higher-precedence provider already claims it.
    *
    * @param {?nsIPrincipal} principal
    * @returns {boolean}
@@ -102,9 +99,7 @@ export class SiteRuleManager extends EventTarget {
     }
     try {
       for (const provider of this.#providers) {
-        // canSet comes first for each provider, so that a site the user has
-        // already set stays manageable: the store's own rule must not count
-        // as something blocking a write to that same store.
+        // canSet first, so a site the user already set stays manageable.
         if (provider.canSet(principal)) {
           return true;
         }

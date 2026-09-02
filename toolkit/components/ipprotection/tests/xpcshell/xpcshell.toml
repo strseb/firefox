@@ -37,6 +37,8 @@ prefs = ["browser.ipProtection.override.serverlist=[]"]
 
 ["test_IPPSignInWatcher.js"]
 
+["test_IPPSiteRuleManager.js"]
+
 ["test_IPPStartupCache.js"]
 
 ["test_IPProtectionServerlist.js"]
